@@ -192,7 +192,7 @@ async def check_game_and_predict(session: aiohttp.ClientSession):
                 base_prob = 55.0
                 reason = "Data အချက်အလက် စုဆောင်းနေဆဲဖြစ်သည်"
 
-                if len(all_history) > 20:
+                if len(all_history) > 50:
                     big_score = 0.0
                     small_score = 0.0
                     reasons_list = []
