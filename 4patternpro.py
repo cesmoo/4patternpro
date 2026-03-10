@@ -192,7 +192,7 @@ async def check_game_and_predict(session: aiohttp.ClientSession):
                 base_prob = 55.0
                 reason = "Data အချက်အလက် စုဆောင်းနေဆဲဖြစ်သည်"
 
-                if len(all_history) > 20:
+                if len(all_history) > 50:
                     big_score = 0.0
                     small_score = 0.0
                     reasons_list = []
@@ -222,11 +222,11 @@ async def check_game_and_predict(session: aiohttp.ClientSession):
                                         reasons_list.append("Deep Pattern")
 
                     # ၂။ Short-Term Momentum (နောက်ဆုံးပွဲ ၂၀ ၏ ရေစီးကြောင်းအားသာချက်)
-                    recent_20 = all_history[-20:]
+                    recent_20 = all_history[-50:]
                     b_recent = recent_20.count('BIG')
                     s_recent = recent_20.count('SMALL')
-                    big_score += (b_recent / 20.0) * 1.5
-                    small_score += (s_recent / 20.0) * 1.5
+                    big_score += (b_recent / 50.0) * 1.5
+                    small_score += (s_recent / 50.0) * 1.5
                     
                     if max(b_recent, s_recent) >= 13:
                         reasons_list.append("Momentum")
