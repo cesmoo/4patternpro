@@ -72,7 +72,7 @@ async def init_db():
     try:
         await history_collection.create_index("issue_number", unique=True)
         await predictions_collection.create_index("issue_number", unique=True)
-        print("🗄 MongoDB ချိတ်ဆက်မှု အောင်မြင်ပါသည်။ (⏱️ Zero-Latency Timer Enabled)")
+        print("🗄 MongoDB ချိတ်ဆက်မှု အောင်မြင်ပါသည်။ (🚀 1024x768 Fixed Resolution Edition)")
     except Exception as e:
         pass
 
@@ -180,15 +180,16 @@ def casino_memory_predict(history_docs, current_lose_streak):
     return final_pred, final_prob, logic_used
 
 # ==========================================
-# 🎨 5. DYNAMIC GRAPH GENERATOR 
+# 🎨 5. DYNAMIC GRAPH GENERATOR (Exact 1024x768)
 # ==========================================
 def generate_winrate_chart(predictions):
     wins, losses = 0, 0
     history_wr, bar_colors, dots_list = [], [], []
     
-    latest_20_preds = list(reversed(predictions))[-20:]
+    # 💡 ဂရပ်ပုံစံမပျက်စေရန် အများဆုံး (၂၀) ပွဲစာသာ ယူမည်
+    latest_preds = list(reversed(predictions))[-20:]
     
-    for p in latest_20_preds: 
+    for p in latest_preds: 
         if 'WIN' in p.get('win_lose', ''):
             wins += 1
             bar_colors.append('#26a69a') 
@@ -203,17 +204,21 @@ def generate_winrate_chart(predictions):
     total_played = wins + losses
     win_rate = int((wins / total_played * 100)) if total_played > 0 else 0
 
-    # 💡 1024x768 (Landscape) Size သတ်မှတ်ချက်
-    fig, ax = plt.subplots(figsize=(10.24, 7.68), facecolor='#1e222d') 
+    # 💡 Width: 10.24 inch, Height: 7.68 inch သတ်မှတ်ချက် (100 DPI ဖြင့် 1024x768 pixel ရမည်)
+    fig = plt.figure(figsize=(10.24, 7.68), facecolor='#1e222d')
+    
+    # ပုံအလယ်တည့်တည့်တွင် ဂရပ်ဇယားကို နေရာချမည် (Left, Bottom, Width, Height)
+    ax = fig.add_axes([0.1, 0.4, 0.8, 0.45])
     ax.set_facecolor('#1e222d')
+    
+    # X ဝင်ရိုးကို အမြဲတမ်း 20 slots ဖြစ်အောင် အသေချထားမည် (ဘေးကိုကားမထွက်စေရန်)
+    ax.set_xlim(-0.5, 19.5)
     
     if total_played > 0:
         x = np.arange(total_played)
-        # အရင်လို မျက်နှာပြင် အပြည့် Auto ဖြည့်ပေးမည့် စနစ်
         ax.bar(x, [55]*total_played, color=bar_colors, width=0.9, bottom=0)
-        ax.plot(x, history_wr, color='#2979ff', linewidth=4, marker='o', markersize=8, markerfacecolor='#1e222d', markeredgecolor='#2979ff', markeredgewidth=2.5)
+        ax.plot(x, history_wr, color='#2979ff', linewidth=3, marker='o', markersize=6, markerfacecolor='#1e222d', markeredgecolor='#2979ff', markeredgewidth=2)
     
-    # 💡 အပြာရောင်မျဉ်း အပေါ်ဘောင်ဖောက်မထွက်အောင် Limit ထားပေးသည်
     ax.set_ylim(0, 105)
     ax.set_yticks([0, 25, 50, 75, 100])
     ax.set_yticklabels(['0%', '25%', '50%', '75%', '100%'], color='#787b86', fontsize=12)
@@ -225,29 +230,31 @@ def generate_winrate_chart(predictions):
     ax.spines['bottom'].set_color('#363a45')
     ax.grid(axis='y', color='#363a45', linestyle='-', linewidth=0.5)
     
-    plt.suptitle("6WIN (30s) WINRATE TRACKING", color='white', fontsize=26, fontweight='bold', y=0.96)
-    plt.figtext(0.5, 0.05, f"{win_rate}%", color='white', fontsize=36, fontweight='bold', ha='center')
-    plt.figtext(0.38, 0.0, f"WINS: {wins}", color='#26a69a', fontsize=18, ha='center', fontweight='bold')
-    plt.figtext(0.62, 0.0, f"LOSSES: {losses}", color='#ef5350', fontsize=18, ha='center', fontweight='bold')
-    plt.figtext(0.5, -0.04, f"PREDICTION COUNT: {total_played}/20", color='white', fontsize=14, ha='center')
-    plt.figtext(0.5, -0.09, "Recent Predictions (Oldest ➔ Latest)", color='#787b86', fontsize=12, ha='center')
+    # 💡 စာသားများ အားလုံးကို ဘောင်အတွင်းတိကျစွာ ဝင်အောင် နေရာချထားသည်
+    fig.text(0.5, 0.92, "WINRATE TRACKING", color='white', fontsize=26, fontweight='bold', ha='center')
+    fig.text(0.5, 0.30, f"{win_rate}%", color='white', fontsize=36, fontweight='bold', ha='center')
+    fig.text(0.38, 0.24, f"WINS: {wins}", color='#26a69a', fontsize=18, ha='center', fontweight='bold')
+    fig.text(0.62, 0.24, f"LOSSES: {losses}", color='#ef5350', fontsize=18, ha='center', fontweight='bold')
+    fig.text(0.5, 0.18, f"PREDICTION COUNT: {total_played}/20", color='white', fontsize=14, ha='center')
+    fig.text(0.5, 0.13, "Recent Predictions (Oldest ➔ Latest)", color='#787b86', fontsize=12, ha='center')
 
-    # အောက်ခြေမှ အလုံးလေးများ အလယ်တည့်တည့်ကျရန် တွက်ချက်မှု
     if len(dots_list) > 0:
-        dot_ax = fig.add_axes([0.1, -0.18, 0.8, 0.08]) 
+        dot_ax = fig.add_axes([0.1, 0.06, 0.8, 0.05]) 
         dot_ax.set_axis_off()
         dot_ax.set_xlim(0, 20) 
+        dot_ax.set_ylim(0, 1)
         colors = dots_list[-20:]
         n_dots = len(colors)
         start_x = (20 - n_dots) / 2.0
         x_coords = [start_x + i + 0.5 for i in range(n_dots)]
         y_coords = [0.5] * n_dots
-        dot_ax.scatter(x_coords, y_coords, s=400, c=colors, edgecolors='white', linewidths=2, zorder=5)
+        dot_ax.scatter(x_coords, y_coords, s=250, c=colors, edgecolors='white', linewidths=1.5, zorder=5)
             
-    plt.figtext(0.5, -0.24, "DEV-WANG LIN", color='white', fontsize=18, fontweight='bold', ha='center', alpha=1)
+    fig.text(0.5, 0.02, "DEV-WANG LIN", color='#787b86', fontsize=14, fontweight='bold', ha='center', alpha=1)
 
     buf = io.BytesIO()
-    plt.savefig(buf, format='png', bbox_inches='tight', dpi=100, facecolor='#1e222d')
+    # 💡 Auto-Crop ဖြတ်ချခြင်း (bbox_inches='tight') ကို ဖြုတ်လိုက်ပြီး Resolution အတိအကျ 1024x768 ရယူသည်
+    plt.savefig(buf, format='png', dpi=100, facecolor='#1e222d')
     buf.seek(0)
     plt.close(fig)
     return buf
@@ -396,11 +403,6 @@ async def check_game_and_predict(session: aiohttp.ClientSession):
             f"{table_str}\n"
             f"🅿️ <b>Period:</b> {next_issue[:3]}**{next_issue[-4:]}\n"
             f"🎯 <b>Predict: {predicted}</b>\n"
-            #f"📈 <b>ဖြစ်နိုင်ခြေ:</b> {final_prob}%\n"
-            #f"💡 <b>အကြောင်းပြချက်:</b>\n"
-            #f"{reason}\n"
-            #f"━━━━━━━━━━━━━━━━━━\n"
-            #f"{bet_advice}"
         )
     
     current_time = time.time()
@@ -456,7 +458,7 @@ async def send_welcome(message: types.Message):
     await message.reply("👋 မင်္ဂလာပါ။ စနစ်က Zero-Latency Timer ဖြင့် လုံးဝတိကျစွာ အလုပ်လုပ်နေပါပြီ။")
 
 async def main():
-    print("🚀 Aiogram Bigwin Bot (Zero-Latency Timer Edition) စတင်နေပါပြီ...\n")
+    print("🚀 Aiogram Bigwin Bot (1024x768 Fixed Resolution Edition) စတင်နေပါပြီ...\n")
     await bot.delete_webhook(drop_pending_updates=True)
     asyncio.create_task(auto_broadcaster())
     await dp.start_polling(bot)
