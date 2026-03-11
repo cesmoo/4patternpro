@@ -72,7 +72,7 @@ async def init_db():
     try:
         await history_collection.create_index("issue_number", unique=True)
         await predictions_collection.create_index("issue_number", unique=True)
-        print("🗄 MongoDB ချိတ်ဆက်မှု အောင်မြင်ပါသည်။ (⏱️ Zero-Latency Timer Enabled)")
+        print("🗄 MongoDB ချိတ်ဆက်မှု အောင်မြင်ပါသည်။ (⏱️ Zero-Latency Timer & 1024x768 Graph Edition)")
     except Exception as e:
         pass
 
@@ -180,16 +180,13 @@ def casino_memory_predict(history_docs, current_lose_streak):
     return final_pred, final_prob, logic_used
 
 # ==========================================
-# 🎨 5. DYNAMIC GRAPH GENERATOR 
+# 🎨 5. DYNAMIC GRAPH GENERATOR (1024x768)
 # ==========================================
 def generate_winrate_chart(predictions):
     wins, losses = 0, 0
     history_wr, bar_colors, dots_list = [], [], []
     
-    # 💡 [FIX] နောက်ဆုံး ၂၀ ပွဲကိုသာ ကန့်သတ်ယူမည်
-    latest_preds = list(reversed(predictions))[-20:]
-    
-    for p in latest_preds: 
+    for p in reversed(predictions): 
         if 'WIN' in p.get('win_lose', ''):
             wins += 1
             bar_colors.append('#26a69a') 
@@ -204,20 +201,19 @@ def generate_winrate_chart(predictions):
     total_played = wins + losses
     win_rate = int((wins / total_played * 100)) if total_played > 0 else 0
 
-    fig, ax = plt.subplots(figsize=(8, 5.5), facecolor='#1e222d') 
+    # 💡 [UPDATE] X-Y Resolution ကို 10.24 * 100 DPI = 1024 px, 7.68 * 100 DPI = 768 px သတ်မှတ်ထားပါသည်
+    fig, ax = plt.subplots(figsize=(10.24, 7.68), facecolor='#1e222d') 
     ax.set_facecolor('#1e222d')
-    
-    # 💡 [FIX] X-axis ကို (၂၀) ပွဲစာ အသေသတ်မှတ်ပေးလိုက်ပါပြီ
-    ax.set_xlim(-0.5, 19.5)
     
     if total_played > 0:
         x = np.arange(total_played)
-        ax.bar(x, [55]*total_played, color=bar_colors, width=0.8, bottom=0)
-        ax.plot(x, history_wr, color='#2979ff', linewidth=3, marker='o', markersize=6, markerfacecolor='#1e222d', markeredgecolor='#2979ff', markeredgewidth=2)
+        ax.bar(x, [55]*total_played, color=bar_colors, width=0.9, bottom=0)
+        ax.plot(x, history_wr, color='#2979ff', linewidth=4, marker='o', markersize=8, markerfacecolor='#1e222d', markeredgecolor='#2979ff', markeredgewidth=2.5)
     
+    ax.set_xlim(-0.5, 19.5)
     ax.set_ylim(0, 105)
     ax.set_yticks([0, 25, 50, 75, 100])
-    ax.set_yticklabels(['0%', '25%', '50%', '75%', '100%'], color='#787b86', fontsize=10)
+    ax.set_yticklabels(['0%', '25%', '50%', '75%', '100%'], color='#787b86', fontsize=12)
     ax.set_xticks([])
     
     ax.spines['top'].set_visible(False)
@@ -226,26 +222,26 @@ def generate_winrate_chart(predictions):
     ax.spines['bottom'].set_color('#363a45')
     ax.grid(axis='y', color='#363a45', linestyle='-', linewidth=0.5)
     
-    plt.suptitle("WINRATE TRACKING", color='white', fontsize=20, fontweight='bold', y=0.96)
-    plt.figtext(0.5, 0.05, f"{win_rate}%", color='white', fontsize=30, fontweight='bold', ha='center')
-    plt.figtext(0.38, 0.0, f"WINS: {wins}", color='#26a69a', fontsize=14, ha='center', fontweight='bold')
-    plt.figtext(0.62, 0.0, f"LOSSES: {losses}", color='#ef5350', fontsize=14, ha='center', fontweight='bold')
-    plt.figtext(0.5, -0.05, f"PREDICTION COUNT: {total_played}/20", color='white', fontsize=12, ha='center')
-    plt.figtext(0.5, -0.11, "Recent Predictions (Oldest ➔ Latest)", color='#787b86', fontsize=10, ha='center')
+    plt.suptitle("WINRATE TRACKING", color='white', fontsize=26, fontweight='bold', y=0.96)
+    plt.figtext(0.5, 0.05, f"{win_rate}%", color='white', fontsize=36, fontweight='bold', ha='center')
+    plt.figtext(0.38, 0.0, f"WINS: {wins}", color='#26a69a', fontsize=18, ha='center', fontweight='bold')
+    plt.figtext(0.62, 0.0, f"LOSSES: {losses}", color='#ef5350', fontsize=18, ha='center', fontweight='bold')
+    plt.figtext(0.5, -0.04, f"PREDICTION COUNT: {total_played}/20", color='white', fontsize=14, ha='center')
+    plt.figtext(0.5, -0.09, "Recent Predictions (Oldest ➔ Latest)", color='#787b86', fontsize=12, ha='center')
 
     if len(dots_list) > 0:
-        dot_ax = fig.add_axes([0.1, -0.2, 0.8, 0.08]) 
+        dot_ax = fig.add_axes([0.1, -0.18, 0.8, 0.08]) 
         dot_ax.set_axis_off()
         dot_ax.set_xlim(0, 20) 
         dot_ax.set_ylim(0, 1)
-        colors = dots_list
+        colors = dots_list[-20:]
         n_dots = len(colors)
         start_x = (20 - n_dots) / 2.0
         x_coords = [start_x + i + 0.5 for i in range(n_dots)]
         y_coords = [0.5] * n_dots
-        dot_ax.scatter(x_coords, y_coords, s=250, c=colors, edgecolors='white', linewidths=1.5, zorder=5)
+        dot_ax.scatter(x_coords, y_coords, s=400, c=colors, edgecolors='white', linewidths=2, zorder=5)
             
-    plt.figtext(0.5, -0.28, "DEV-WANG LIN", color='white', fontsize=15, fontweight='bold', ha='center', alpha=1)
+    plt.figtext(0.5, -0.24, "DEV-WANG LIN", color='white', fontsize=18, fontweight='bold', ha='center', alpha=1)
 
     buf = io.BytesIO()
     plt.savefig(buf, format='png', bbox_inches='tight', dpi=100, facecolor='#1e222d')
@@ -397,6 +393,11 @@ async def check_game_and_predict(session: aiohttp.ClientSession):
             f"{table_str}\n"
             f"🅿️ <b>Period:</b> {next_issue[:3]}**{next_issue[-4:]}\n"
             f"🎯 <b>Predict: {predicted}</b>\n"
+            #f"📈 <b>ဖြစ်နိုင်ခြေ:</b> {final_prob}%\n"
+            #f"💡 <b>အကြောင်းပြချက်:</b>\n"
+            #f"{reason}\n"
+            #f"━━━━━━━━━━━━━━━━━━\n"
+            #f"{bet_advice}"
         )
     
     current_time = time.time()
@@ -452,7 +453,7 @@ async def send_welcome(message: types.Message):
     await message.reply("👋 မင်္ဂလာပါ။ စနစ်က Zero-Latency Timer ဖြင့် လုံးဝတိကျစွာ အလုပ်လုပ်နေပါပြီ။")
 
 async def main():
-    print("🚀 Aiogram Bigwin Bot (Zero-Latency Timer Edition) စတင်နေပါပြီ...\n")
+    print("🚀 Aiogram Bigwin Bot (1024x768 Graph Edition) စတင်နေပါပြီ...\n")
     await bot.delete_webhook(drop_pending_updates=True)
     asyncio.create_task(auto_broadcaster())
     await dp.start_polling(bot)
