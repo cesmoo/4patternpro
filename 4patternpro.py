@@ -1,6 +1,9 @@
 import asyncio
 import time
 import os
+import io
+import json
+from datetime import datetime
 from dotenv import load_dotenv
 import aiohttp
 import motor.motor_asyncio 
@@ -9,6 +12,19 @@ from aiogram import Bot, Dispatcher, types
 from aiogram.filters import Command
 from aiogram.enums import ParseMode
 from aiogram.client.default import DefaultBotProperties
+from aiogram.exceptions import TelegramBadRequest, TelegramRetryAfter
+from aiogram.types import BufferedInputFile, InputMediaPhoto
+
+# --- 🧠 TRUE MACHINE LEARNING LIBRARIES ---
+import numpy as np
+from sklearn.ensemble import RandomForestClassifier
+import matplotlib
+matplotlib.use('Agg') # Background တွင် ပုံဆွဲရန်
+import matplotlib.pyplot as plt
+import matplotlib.patches as patches
+import warnings
+warnings.filterwarnings("ignore")
+# ------------------------------------------
 
 load_dotenv()
 
@@ -35,20 +51,13 @@ history_collection = db['game_history']
 predictions_collection = db['predictions'] 
 
 # ==========================================
-# 🔧 2. SYSTEM & TRACKING VARIABLES 
+# 🔧 2. SYSTEM VARIABLES 
 # ==========================================
 CURRENT_TOKEN = ""
-LAST_PROCESSED_ISSUE = ""
-LAST_PREDICTED_ISSUE = ""
-LAST_PREDICTED_RESULT = ""
-
-# --- Streak & Stats Tracking ---
-# (Host Restart လုပ်တိုင်း 0 မှ ပြန်စမည်)
-CURRENT_WIN_STREAK = 0
-CURRENT_LOSE_STREAK = 0
-LONGEST_WIN_STREAK = 0
-LONGEST_LOSE_STREAK = 0
-TOTAL_PREDICTIONS = 0 
+LAST_PROCESSED_ISSUE = None
+MAIN_MESSAGE_ID = None 
+SESSION_START_ISSUE = None 
+LAST_CAPTION_EDIT_TIME = 0 
 
 BASE_HEADERS = {
     'authority': 'api.bigwinqaz.com',
@@ -63,17 +72,24 @@ async def init_db():
     try:
         await history_collection.create_index("issue_number", unique=True)
         await predictions_collection.create_index("issue_number", unique=True)
-        print("🗄 MongoDB ချိတ်ဆက်မှု အောင်မြင်ပါသည်။")
+        print("🗄 MongoDB ချိတ်ဆက်မှု အောင်မြင်ပါသည်။ (⏱️ Zero-Latency Timer Enabled)")
     except Exception as e:
-        print(f"❌ MongoDB Indexing Error: {e}")
+        pass
 
 # ==========================================
 # 🔑 3. ASYNC API FUNCTIONS
 # ==========================================
+async def fetch_with_retry(session, url, headers, json_data, retries=3):
+    for attempt in range(retries):
+        try:
+            async with session.post(url, headers=headers, json=json_data, timeout=10) as response:
+                return await response.json()
+        except Exception:
+            if attempt == retries - 1: return None
+            await asyncio.sleep(1)
+
 async def login_and_get_token(session: aiohttp.ClientSession):
     global CURRENT_TOKEN
-    print("🔐 အကောင့်ထဲသို့ Login ဝင်နေပါသည်...")
-    
     json_data = {
         'username': '959680090540',
         'pwd': 'Mitheint11',
@@ -86,43 +102,156 @@ async def login_and_get_token(session: aiohttp.ClientSession):
         'signature': '202C655177E9187D427A26F3CDC00A52',
         'timestamp': 1773021618,
     }
-
-    try:
-        async with session.post('https://api.bigwinqaz.com/api/webapi/Login', headers=BASE_HEADERS, json=json_data) as response:
-            data = await response.json()
-            if data.get('code') == 0:
-                token_str = data.get('data', {}) if isinstance(data.get('data'), str) else data.get('data', {}).get('token', '')
-                CURRENT_TOKEN = f"Bearer {token_str}"
-                print("✅ Login အောင်မြင်ပါသည်။ Token အသစ် ရရှိပါပြီ။\n")
-                return True
-            return False
-    except: return False
-
-async def get_user_balance(session: aiohttp.ClientSession):
-    global CURRENT_TOKEN
-    if not CURRENT_TOKEN: return "0.00"
-    headers = BASE_HEADERS.copy()
-    headers['authorization'] = CURRENT_TOKEN
-    
-    json_data = {
-        'signature': 'F7A9A2A74E1F1D1DFE048846E49712F8',
-        'language': 7,
-        'random': '58d9087426f24a54870e243b76743a94',
-        'timestamp': 1772984987,
-    }
-    try:
-        async with session.post('https://api.bigwinqaz.com/api/webapi/GetUserInfo', headers=headers, json=json_data) as response:
-            data = await response.json()
-            if data.get('code') == 0: return data.get('data', {}).get('amount', '0.00')
-            return "0.00"
-    except: return "0.00"
+    data = await fetch_with_retry(session, 'https://api.bigwinqaz.com/api/webapi/Login', BASE_HEADERS, json_data)
+    if data and data.get('code') == 0:
+        token_str = data.get('data', {}) if isinstance(data.get('data'), str) else data.get('data', {}).get('token', '')
+        CURRENT_TOKEN = f"Bearer {token_str}"
+        print("✅ Login အောင်မြင်ပါသည်။ Token အသစ် ရရှိပါပြီ。\n")
+        return True
+    return False
 
 # ==========================================
-# 🧠 4. 🔥 ADVANCED AI ENSEMBLE LOGIC 🔥
+# 🧠 4. EMERGENCY RECOVERY AI & DEEP MEMORY
+# ==========================================
+def casino_memory_predict(history_docs, current_lose_streak):
+    if len(history_docs) < 10: return "BIG", 55.0, "Data စုဆောင်းဆဲ..."
+    
+    docs = list(reversed(history_docs)) 
+    sizes = [d.get('size', 'BIG') for d in docs]
+    
+    score_b, score_s = 0.0, 0.0
+    logic_used = ""
+
+    if current_lose_streak >= 3:
+        logic_used = "🚨 <b>Emergency Recovery AI</b>\n"
+        if len(sizes) >= 3:
+            if sizes[-1] != sizes[-2] and sizes[-2] != sizes[-3]:
+                logic_used += "├ 🏓 <b>Pattern:</b> Ping-Pong (ခုတ်ချိုး)\n"
+                logic_used += "└ 💡 <b>Action:</b> ပြောင်းပြန်ချိုးမည်"
+                pred = 'BIG' if sizes[-1] == 'SMALL' else 'SMALL'
+                return pred, 98.0, logic_used
+            elif sizes[-1] == sizes[-2]:
+                logic_used += "├ 🐉 <b>Pattern:</b> Dragon (အတန်းရှည်)\n"
+                logic_used += "└ 💡 <b>Action:</b> ရေစီးကြောင်းနောက် လိုက်မည်"
+                return sizes[-1], 98.0, logic_used
+            else:
+                logic_used += "├ 🌊 <b>Pattern:</b> Mixed (ရောထွေးနေသည်)\n"
+                logic_used += "└ 💡 <b>Action:</b> နောက်ဆုံးအလုံးအတိုင်း လိုက်မည်"
+                return sizes[-1], 90.0, logic_used
+
+    last_100 = sizes[-100:] if len(sizes) >= 100 else sizes
+    b_100 = last_100.count('BIG')
+    s_100 = last_100.count('SMALL')
+    
+    if b_100 > (len(last_100) * 0.55): 
+        score_s += 2.5
+        logic_used += f"├ ⚖️ Casino Balance (SMALL သို့ မျှခြေပြန်ဆွဲမည်)\n"
+    elif s_100 > (len(last_100) * 0.55): 
+        score_b += 2.5
+        logic_used += f"├ ⚖️ Casino Balance (BIG သို့ မျှခြေပြန်ဆွဲမည်)\n"
+    else:
+        logic_used += f"├ ⚖️ Casino Balance (မျှခြေ ၅၀/၅၀ ရှိနေသည်)\n"
+
+    X, y = [], []
+    window = 5
+    def enc(s): return 1 if s == 'BIG' else 0
+    for i in range(len(sizes) - window):
+        X.append([enc(s) for s in sizes[i:i+window]])
+        y.append(enc(sizes[i+window]))
+        
+    if len(X) > 10:
+        clf = RandomForestClassifier(n_estimators=100, max_depth=5, random_state=42)
+        clf.fit(X, y)
+        rf_pred_num = clf.predict([[enc(s) for s in sizes[-window:]]])[0]
+        rf_prob = max(clf.predict_proba([[enc(s) for s in sizes[-window:]]])[0])
+        
+        if rf_pred_num == 1: score_b += (rf_prob * 2.0)
+        else: score_s += (rf_prob * 2.0)
+            
+    logic_used += "└ 🤖 ML Pattern Recognition"
+
+    final_pred = "BIG" if score_b > score_s else "SMALL"
+    total_score = score_b + score_s
+    if total_score == 0: return "BIG", 55.0, logic_used
+    
+    calc_prob = (max(score_b, score_s) / total_score) * 100
+    final_prob = min(max(calc_prob, 70.0), 96.0) 
+    
+    return final_pred, final_prob, logic_used
+
+# ==========================================
+# 🎨 5. DYNAMIC GRAPH GENERATOR 
+# ==========================================
+def generate_winrate_chart(predictions):
+    wins, losses = 0, 0
+    history_wr, bar_colors, dots_list = [], [], []
+    
+    for p in reversed(predictions): 
+        if 'WIN' in p.get('win_lose', ''):
+            wins += 1
+            bar_colors.append('#26a69a') 
+            dots_list.append('#26a69a')
+        else:
+            losses += 1
+            bar_colors.append('#ef5350') 
+            dots_list.append('#ef5350')
+        total = wins + losses
+        history_wr.append((wins / total) * 100 if total > 0 else 0)
+        
+    total_played = wins + losses
+    win_rate = int((wins / total_played * 100)) if total_played > 0 else 0
+
+    fig, ax = plt.subplots(figsize=(8, 5.5), facecolor='#1e222d') 
+    ax.set_facecolor('#1e222d')
+    
+    if total_played > 0:
+        x = np.arange(total_played)
+        ax.bar(x, [55]*total_played, color=bar_colors, width=0.9, bottom=0)
+        ax.plot(x, history_wr, color='#2979ff', linewidth=3, marker='o', markersize=6, markerfacecolor='#1e222d', markeredgecolor='#2979ff', markeredgewidth=2)
+    
+    ax.set_ylim(0, 105)
+    ax.set_yticks([0, 25, 50, 75, 100])
+    ax.set_yticklabels(['0%', '25%', '50%', '75%', '100%'], color='#787b86', fontsize=10)
+    ax.set_xticks([])
+    
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    ax.spines['left'].set_color('#363a45')
+    ax.spines['bottom'].set_color('#363a45')
+    ax.grid(axis='y', color='#363a45', linestyle='-', linewidth=0.5)
+    
+    plt.suptitle("WINRATE TRACKING", color='white', fontsize=20, fontweight='bold', y=0.96)
+    plt.figtext(0.5, 0.05, f"{win_rate}%", color='white', fontsize=30, fontweight='bold', ha='center')
+    plt.figtext(0.38, 0.0, f"WINS: {wins}", color='#26a69a', fontsize=14, ha='center', fontweight='bold')
+    plt.figtext(0.62, 0.0, f"LOSSES: {losses}", color='#ef5350', fontsize=14, ha='center', fontweight='bold')
+    plt.figtext(0.5, -0.05, f"PREDICTION COUNT: {total_played}/20", color='white', fontsize=12, ha='center')
+    plt.figtext(0.5, -0.11, "Recent Predictions (Oldest ➔ Latest)", color='#787b86', fontsize=10, ha='center')
+
+    if len(dots_list) > 0:
+        dot_ax = fig.add_axes([0.1, -0.2, 0.8, 0.08]) 
+        dot_ax.set_axis_off()
+        dot_ax.set_xlim(0, 20) 
+        dot_ax.set_ylim(0, 1)
+        colors = dots_list
+        n_dots = len(colors)
+        start_x = (20 - n_dots) / 2.0
+        x_coords = [start_x + i + 0.5 for i in range(n_dots)]
+        y_coords = [0.5] * n_dots
+        dot_ax.scatter(x_coords, y_coords, s=250, c=colors, edgecolors='white', linewidths=1.5, zorder=5)
+            
+    plt.figtext(0.5, -0.28, "DEV-WANG", color='white', fontsize=15, fontweight='bold', ha='center', alpha=1)
+
+    buf = io.BytesIO()
+    plt.savefig(buf, format='png', bbox_inches='tight', dpi=100, facecolor='#1e222d')
+    buf.seek(0)
+    plt.close(fig)
+    return buf
+
+# ==========================================
+# 🚀 6. MAIN LOGIC & UI UPDATER
 # ==========================================
 async def check_game_and_predict(session: aiohttp.ClientSession):
-    global CURRENT_TOKEN, LAST_PROCESSED_ISSUE, LAST_PREDICTED_ISSUE, LAST_PREDICTED_RESULT
-    global CURRENT_WIN_STREAK, CURRENT_LOSE_STREAK, LONGEST_WIN_STREAK, LONGEST_LOSE_STREAK, TOTAL_PREDICTIONS
+    global CURRENT_TOKEN, LAST_PROCESSED_ISSUE, MAIN_MESSAGE_ID, SESSION_START_ISSUE, LAST_CAPTION_EDIT_TIME
     
     if not CURRENT_TOKEN:
         if not await login_and_get_token(session): return
@@ -135,177 +264,179 @@ async def check_game_and_predict(session: aiohttp.ClientSession):
         'random': '1ef0a7aca52b4c71975c031dda95150e', 'signature': '7D26EE375971781D1BC58B7039B409B7', 'timestamp': 1772985040,
     }
 
+    data = await fetch_with_retry(session, 'https://api.bigwinqaz.com/api/webapi/GetNoaverageEmerdList', headers, json_data)
+    if not data or data.get('code') != 0:
+        if data and (data.get('code') == 401 or "token" in str(data.get('msg')).lower()): CURRENT_TOKEN = ""
+        return
+
+    records = data.get("data", {}).get("list", [])
+    if not records: return
+    
+    latest_record = records[0]
+    latest_issue = str(latest_record["issueNumber"])
+    latest_number = int(latest_record["number"])
+    latest_size = "BIG" if latest_number >= 5 else "SMALL"
+    latest_parity = "EVEN" if latest_number % 2 == 0 else "ODD"
+    
+    is_new_issue = False
+    if not LAST_PROCESSED_ISSUE:
+        is_new_issue = True
+    elif int(latest_issue) > int(LAST_PROCESSED_ISSUE):
+        is_new_issue = True
+    
+    if is_new_issue:
+        LAST_PROCESSED_ISSUE = latest_issue
+        if not SESSION_START_ISSUE:
+            SESSION_START_ISSUE = latest_issue
+        
+        await history_collection.update_one(
+            {"issue_number": latest_issue}, 
+            {"$setOnInsert": {
+                "number": latest_number, "size": latest_size, 
+                "parity": latest_parity, "time_context": "CURRENT"
+            }}, upsert=True
+        )
+        
+        pred_doc = await predictions_collection.find_one({"issue_number": latest_issue})
+        if pred_doc and pred_doc.get("predicted_size"):
+            db_predicted_size = pred_doc.get("predicted_size")
+            is_win = (db_predicted_size == latest_size)
+            win_lose_status = "WIN ✅" if is_win else "LOSE ❌"
+            await predictions_collection.update_one(
+                {"issue_number": latest_issue}, 
+                {"$set": {"actual_size": latest_size, "actual_number": latest_number, "win_lose": win_lose_status}}
+            )
+
+    if LAST_PROCESSED_ISSUE:
+        next_issue = str(int(LAST_PROCESSED_ISSUE) + 1)
+    else:
+        next_issue = str(int(latest_issue) + 1)
+
+    current_session_count = await predictions_collection.count_documents({
+        "issue_number": {"$gte": SESSION_START_ISSUE}, 
+        "win_lose": {"$ne": None}
+    })
+    
+    if current_session_count >= 20: 
+        SESSION_START_ISSUE = next_issue
+    
+    # ==============================================================
+    # 🧠 CALCULATE LOSE STREAK & GET PREDICTION
+    # ==============================================================
+    recent_preds_cursor = predictions_collection.find({"win_lose": {"$ne": None}}).sort("issue_number", -1).limit(10)
+    recent_preds = await recent_preds_cursor.to_list(length=10)
+    
+    current_lose_streak = 0
+    for p in recent_preds:
+        if p.get("win_lose") == "LOSE ❌":
+            current_lose_streak += 1
+        else:
+            break
+
+    cursor = history_collection.find().sort("issue_number", -1).limit(5000)
+    history_docs = await cursor.to_list(length=5000)
+
     try:
-        async with session.post('https://api.bigwinqaz.com/api/webapi/GetNoaverageEmerdList', headers=headers, json=json_data) as response:
-            data = await response.json()
-            if data.get('code') == 0:
-                records = data.get("data", {}).get("list", [])
-                if not records: return
+        mem_pred, mem_prob, mem_logic = await asyncio.to_thread(casino_memory_predict, history_docs, current_lose_streak)
+        predicted = "BIG (အကြီး) 🔴" if mem_pred == "BIG" else "SMALL (အသေး) 🟢"
+        base_prob = mem_prob
+        reason = f"🧠 <b>Casino Deep Memory Clone</b>\n{mem_logic}"
+    except Exception as e:
+        predicted = "BIG (အကြီး) 🔴"
+        base_prob = 55.0
+        reason = "⚠️ Memory Syncing Error..."
+    
+    final_prob = min(max(round(base_prob, 1), 60.0), 98.0)
+    predicted_result_db = "BIG" if "BIG" in predicted else "SMALL"
+    
+    await predictions_collection.update_one(
+        {"issue_number": next_issue}, 
+        {"$set": {"predicted_size": predicted_result_db}}, 
+        upsert=True
+    )
+
+    bet_advice = ""
+    if current_lose_streak == 0: bet_advice = "💰 <b>လောင်းကြေး:</b> အခြေခံကြေး (1x)"
+    elif current_lose_streak == 1: bet_advice = "💰 <b>လောင်းကြေး:</b> 2x (Martingale)"
+    elif current_lose_streak == 2: bet_advice = "💰 <b>လောင်းကြေး:</b> 4x (Martingale)"
+    elif current_lose_streak == 3: bet_advice = "💰 <b>လောင်းကြေး:</b> 8x (Martingale)"
+    else: bet_advice = "⚠️ <b>[DANGER] ၄ ပွဲဆက်ရှုံးထားပါသည်!</b>\nခဏနားပါ (သို့) <b>1x မှ ပြန်စပါ။</b>"
+
+    pred_cursor = predictions_collection.find({
+        "issue_number": {"$gte": SESSION_START_ISSUE},
+        "win_lose": {"$ne": None}
+    }).sort("issue_number", -1)
+    
+    session_preds = await pred_cursor.to_list(length=20) 
+    
+    table_str = "<code>Period    | Result  | W/L\n"
+    table_str += "----------|---------|----\n"
+    for p in session_preds[:10]: 
+        iss = p.get('issue_number', '0000000')
+        iss_short = f"{iss[:3]}**{iss[-4:]}" 
+        act_size = p.get('actual_size', 'BIG')
+        act_num = p.get('actual_number', 0)
+        res_str = f"{act_num}-{act_size}"
+        wl_str = "✅" if "WIN" in p.get("win_lose", "") else "❌"
+        table_str += f"{iss_short:<10}| {res_str:<7} | {wl_str}\n"
+    table_str += "</code>"
+
+    # ⚡ ချက်ချင်းအချိန်ဆွဲယူမည့် Function
+    def get_realtime_caption():
+        sec_left = 30 - (int(time.time()) % 30)
+        if sec_left == 30: sec_left = 0 # ၃၀ စက္ကန့်ပြည့်ချိန်တွင် 0s ဟုပြရန်
+        return (
+            f"<b>WIN GO 30 SECONDS</b>\n"
+            f"⏰ Next Result In: <b>{sec_left}s</b>\n\n"
+            f"{table_str}\n"
+            f"🅿️ <b>Period:</b> {next_issue[:3]}**{next_issue[-4:]}\n"
+            f"🎯 <b>Predict: {predicted}</b>\n"
+            #f"📈 <b>ဖြစ်နိုင်ခြေ:</b> {final_prob}%\n"
+            #f"💡 <b>အကြောင်းပြချက်:</b>\n"
+            #f"{reason}\n"
+            #f"━━━━━━━━━━━━━━━━━━\n"
+            #f"{bet_advice}"
+        )
+    
+    current_time = time.time()
+    try:
+        # ပွဲသစ်ထွက်ချိန်တွင် ပုံအရင်ဆွဲမည် (အချိန်ယူသည်)
+        if is_new_issue or not MAIN_MESSAGE_ID:
+            img_buf = await asyncio.to_thread(generate_winrate_chart, session_preds)
+            unique_filename = f"winrate_chart_{int(current_time)}.png"
+            photo = BufferedInputFile(img_buf.read(), filename=unique_filename)
+            
+            # ပုံဆွဲပြီး၍ Telegram ဆီ ပို့ခါနီးအချိန်ရောက်မှသာ လက်ရှိစက္ကန့်ကို တွက်ချက်မည် (Zero-Latency)
+            tg_caption = get_realtime_caption()
+            
+            if MAIN_MESSAGE_ID:
+                media = InputMediaPhoto(media=photo, caption=tg_caption, parse_mode="HTML")
+                await bot.edit_message_media(chat_id=TELEGRAM_CHANNEL_ID, message_id=MAIN_MESSAGE_ID, media=media)
+            else:
+                msg = await bot.send_photo(chat_id=TELEGRAM_CHANNEL_ID, photo=photo, caption=tg_caption)
+                MAIN_MESSAGE_ID = msg.message_id
+            
+            LAST_CAPTION_EDIT_TIME = time.time() 
+            
+        else:
+            # စက္ကန့်လျော့နေချိန်တွင် ၁ စက္ကန့်ခြားတိုင်း အတိအကျ Update လုပ်မည်
+            if current_time - LAST_CAPTION_EDIT_TIME >= 1.0:
+                if MAIN_MESSAGE_ID:
+                    # Update လုပ်ခါနီး အတိအကျအချိန်ကို ယူမည်
+                    tg_caption = get_realtime_caption()
+                    await bot.edit_message_caption(chat_id=TELEGRAM_CHANNEL_ID, message_id=MAIN_MESSAGE_ID, caption=tg_caption, parse_mode="HTML")
+                LAST_CAPTION_EDIT_TIME = time.time()
                 
-                latest_record = records[0]
-                latest_issue = str(latest_record["issueNumber"])
-                latest_number = int(latest_record["number"])
-                latest_size = "BIG" if latest_number >= 5 else "SMALL"
-                
-                if latest_issue == LAST_PROCESSED_ISSUE: return 
-                LAST_PROCESSED_ISSUE = latest_issue
-                next_issue = str(int(latest_issue) + 1)
-                win_lose_text = ""
-                
-                await history_collection.update_one({"issue_number": latest_issue}, {"$setOnInsert": {"number": latest_number, "size": latest_size}}, upsert=True)
-                
-                # --- နိုင်/ရှုံး စစ်ဆေးခြင်း နှင့် Streak တွက်ချက်ခြင်း ---
-                if LAST_PREDICTED_ISSUE == latest_issue:
-                    is_win = (LAST_PREDICTED_RESULT == latest_size)
-                    TOTAL_PREDICTIONS += 1
-                    
-                    if is_win:
-                        win_lose_status = "WIN ✅"
-                        CURRENT_WIN_STREAK += 1
-                        CURRENT_LOSE_STREAK = 0
-                        if CURRENT_WIN_STREAK > LONGEST_WIN_STREAK:
-                            LONGEST_WIN_STREAK = CURRENT_WIN_STREAK
-                    else:
-                        win_lose_status = "LOSE ❌"
-                        CURRENT_LOSE_STREAK += 1
-                        CURRENT_WIN_STREAK = 0
-                        if CURRENT_LOSE_STREAK > LONGEST_LOSE_STREAK:
-                            LONGEST_LOSE_STREAK = CURRENT_LOSE_STREAK
-                            
-                    await predictions_collection.update_one({"issue_number": latest_issue}, {"$set": {"actual_size": latest_size, "win_lose": win_lose_status}})
-                    
-                    win_lose_text = (
-                        f"🏆 <b>ပြီးခဲ့သောပွဲစဉ် ({latest_issue})</b> ရလဒ်: {latest_size}\n"
-                        f"📊 <b>ခန့်မှန်းချက်: {win_lose_status}</b>\n"
-                        f"━━━━━━━━━━━━━━━━━━\n"
-                    )
-
-                # ==============================================================
-                # 🧠 NEW AI: Multi-Layer Ensemble Algorithm
-                # ==============================================================
-                cursor = history_collection.find().sort("issue_number", -1).limit(5000)
-                history_docs = await cursor.to_list(length=5000)
-                history_docs.reverse()
-                all_history = [doc["size"] for doc in history_docs]
-                
-                predicted = "BIG (အကြီး) 🔴"
-                base_prob = 55.0
-                reason = "Data အချက်အလက် စုဆောင်းနေဆဲဖြစ်သည်"
-
-                if len(all_history) > 50:
-                    big_score = 0.0
-                    small_score = 0.0
-                    reasons_list = []
-
-                    # ၁။ Weighted Pattern Matching (၃ ပွဲဆက်မှ ၈ ပွဲဆက်အထိ အကုန်တွက်မည်)
-                    # ပိုရှည်သော Pattern တူလေ အမှတ်(Score) ပိုရလေ ဖြစ်သည်။
-                    weights = {3: 1.0, 4: 1.5, 5: 2.0, 6: 3.0, 7: 4.0, 8: 5.0}
-                    
-                    for length in range(3, 9):
-                        if len(all_history) > length:
-                            recent_pattern = all_history[-length:]
-                            b_count = 0
-                            s_count = 0
-                            
-                            for i in range(len(all_history) - length):
-                                if all_history[i:i+length] == recent_pattern:
-                                    next_res = all_history[i+length]
-                                    if next_res == 'BIG': b_count += 1
-                                    elif next_res == 'SMALL': s_count += 1
-                                        
-                            total_matches = b_count + s_count
-                            if total_matches > 0:
-                                big_score += (b_count / total_matches) * weights[length]
-                                small_score += (s_count / total_matches) * weights[length]
-                                if length >= 6 and total_matches >= 2:
-                                    if "Deep Pattern" not in reasons_list:
-                                        reasons_list.append("Deep Pattern")
-
-                    # ၂။ Short-Term Momentum (နောက်ဆုံးပွဲ ၂၀ ၏ ရေစီးကြောင်းအားသာချက်)
-                    recent_20 = all_history[-50:]
-                    b_recent = recent_20.count('BIG')
-                    s_recent = recent_20.count('SMALL')
-                    big_score += (b_recent / 50.0) * 1.5
-                    small_score += (s_recent / 50.0) * 1.5
-                    
-                    if max(b_recent, s_recent) >= 13:
-                        reasons_list.append("Momentum")
-
-                    # ၃။ Streak Breaker (တစ်မျိုးတည်း ဆက်တိုက်ထွက်နေပါက ပြတ်နိုင်ခြေကို တွက်ချက်ခြင်း)
-                    current_streak_len = 1
-                    last_color = all_history[-1]
-                    for i in range(2, 10):
-                        if len(all_history) >= i and all_history[-i] == last_color:
-                            current_streak_len += 1
-                        else:
-                            break
-                            
-                    if current_streak_len >= 5: # ၅ ပွဲထက်ပိုတူနေရင် Break ဖြစ်ဖို့ တွန်းအားပေးမည်
-                        reasons_list.append(f"{current_streak_len}-Streak Break")
-                        if last_color == 'BIG':
-                            small_score += current_streak_len * 0.8
-                        else:
-                            big_score += current_streak_len * 0.8
-
-                    # ၄။ Final Decision (ရလာသော Score များအားလုံးကို ပေါင်း၍ ဆုံးဖြတ်ခြင်း)
-                    total_score = big_score + small_score
-                    if total_score > 0:
-                        big_prob = (big_score / total_score) * 100
-                        small_prob = (small_score / total_score) * 100
-                        
-                        if big_prob > small_prob:
-                            predicted = "BIG (အကြီး) 🔴"
-                            base_prob = big_prob
-                        else:
-                            predicted = "SMALL (အသေး) 🟢"
-                            base_prob = small_prob
-                            
-                        reason_text = " + ".join(reasons_list) if reasons_list else "Trend Analysis"
-                        reason = f"🧠 AI Ensemble Logic [{reason_text}]"
-                    else:
-                        base_prob = 55.0
-                        reason = "သမိုင်းကြောင်းအရ တွက်ချက်ထားသည်"
-
-                # ရာခိုင်နှုန်းကို လက်တွေ့ကျစေရန် 55% နှင့် 92% ကြားတွင်သာ ရှိစေမည်
-                final_prob = min(max(round(base_prob, 1), 55.0), 92.0)
-
-                LAST_PREDICTED_ISSUE = next_issue
-                LAST_PREDICTED_RESULT = "BIG" if "BIG" in predicted else "SMALL"
-                
-                await predictions_collection.update_one({"issue_number": next_issue}, {"$set": {"predicted_size": LAST_PREDICTED_RESULT, "probability": final_prob, "actual_size": None, "win_lose": None}}, upsert=True)
-
-                print(f"✅ [NEW] ပွဲစဉ်: {next_issue} | Predict: {predicted} | AI Score: {final_prob}%")
-
-                # --- 🎨 TELEGRAM MESSAGE FORMATTING ---
-                tg_message = (
-                    f"🎰 <b>Bigwin 30-Seconds (AI Predictor)</b>\n"
-                    f"━━━━━━━━━━━━━━━━━━\n"
-                    f"{win_lose_text}"
-                    f"🎯 <b>နောက်ပွဲစဉ်အမှတ် :</b>\n"
-                    f"<code>{next_issue}</code>\n"
-                    f"🤖 <b>AI ခန့်မှန်းချက် : {predicted}</b>\n"
-                    f"📈 <b>ဖြစ်နိုင်ခြေ :</b> {final_prob}%\n"
-                    f"💡 <b>အကြောင်းပြချက် :</b>\n"
-                    f"{reason}\n"
-                    f"━━━━━━━━━━━━━━━━━━\n"
-                    f"Cᴜʀʀᴇɴᴛ Wɪɴ Sᴛʀᴇᴀᴋ : {CURRENT_WIN_STREAK}\n"
-                    f"Cᴜʀʀᴇɴᴛ Lᴏsᴇ Sᴛʀᴇᴀᴋ : {CURRENT_LOSE_STREAK}\n"
-                    f"━━━━━━━━━━━━━━━━━━\n"
-                    f"Lᴏɴɢᴇsᴛ Wɪɴ Sᴛʀᴇᴀᴋ : {LONGEST_WIN_STREAK}\n"
-                    f"Lᴏɴɢᴇsᴛ Lᴏsᴇ Sᴛʀᴇᴀᴋ : {LONGEST_LOSE_STREAK}\n"
-                    f"━━━━━━━━━━━━━━━━━━\n"
-                    f"Tᴏᴛᴀʟ Pʀᴇᴅɪᴄᴛɪᴏɴs : {TOTAL_PREDICTIONS}"
-                )
-                
-                try: await bot.send_message(chat_id=TELEGRAM_CHANNEL_ID, text=tg_message)
-                except: pass
-                
-            elif data.get('code') == 401 or "token" in str(data.get('msg')).lower():
-                CURRENT_TOKEN = ""
-    except Exception as e: print(f"❌ Game Data Request Error: {e}")
+    except TelegramRetryAfter as e:
+        LAST_CAPTION_EDIT_TIME = time.time() + e.retry_after
+    except TelegramBadRequest as e:
+        if "message is not modified" in str(e):
+            pass 
+        elif "message to edit not found" in str(e):
+            MAIN_MESSAGE_ID = None 
 
 # ==========================================
-# 🔄 5. BACKGROUND TASK & MAIN LOOP
+# 🔄 6. BACKGROUND TASK
 # ==========================================
 async def auto_broadcaster():
     await init_db() 
@@ -313,14 +444,14 @@ async def auto_broadcaster():
         await login_and_get_token(session)
         while True:
             await check_game_and_predict(session)
-            await asyncio.sleep(5)
+            await asyncio.sleep(0.5) 
 
 @dp.message(Command("start"))
 async def send_welcome(message: types.Message):
-    await message.reply("👋 မင်္ဂလာပါ။ Bigwin Advanced AI Predictor Bot မှ ကြိုဆိုပါတယ်။\n\nစနစ်က Channel ထဲကို အလိုအလျောက် Signal တွေ ပို့ပေးနေပါပြီ။")
+    await message.reply("👋 မင်္ဂလာပါ။ စနစ်က Zero-Latency Timer ဖြင့် လုံးဝတိကျစွာ အလုပ်လုပ်နေပါပြီ။")
 
 async def main():
-    print("🚀 Aiogram Bigwin Bot (Advanced Ensemble AI) စတင်နေပါပြီ...\n")
+    print("🚀 Aiogram Bigwin Bot (Zero-Latency Timer Edition) စတင်နေပါပြီ...\n")
     await bot.delete_webhook(drop_pending_updates=True)
     asyncio.create_task(auto_broadcaster())
     await dp.start_polling(bot)
