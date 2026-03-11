@@ -3,7 +3,6 @@ import time
 import os
 import io
 import json
-import traceback
 from datetime import datetime
 from dotenv import load_dotenv
 import aiohttp
@@ -32,51 +31,40 @@ load_dotenv()
 # ==========================================
 # ⚙️ 1. CONFIGURATION
 # ==========================================
-USERNAME = os.getenv("BIGWIN_USERNAME", "959675323878")
-PASSWORD = os.getenv("BIGWIN_PASSWORD", "Mitheint11")
+USERNAME = os.getenv("BIGWIN_USERNAME")
+PASSWORD = os.getenv("BIGWIN_PASSWORD")
 TELEGRAM_BOT_TOKEN = os.getenv("BOT_TOKEN")
 TELEGRAM_CHANNEL_ID = os.getenv("CHANNEL_ID")
 MONGO_URI = os.getenv("MONGO_URI") 
 
-if not all([TELEGRAM_BOT_TOKEN, TELEGRAM_CHANNEL_ID, MONGO_URI]):
+if not all([USERNAME, PASSWORD, TELEGRAM_BOT_TOKEN, TELEGRAM_CHANNEL_ID, MONGO_URI]):
     print("❌ Error: .env ဖိုင်ထဲတွင် အချက်အလက်များ ပြည့်စုံစွာ မပါဝင်ပါ။")
     exit()
-
-# 🔑========================================🔑
-# 🚨 6WIN API လုံခြုံရေးသော့များ (Win Go 30s)
-# 🔑========================================🔑
-LOGIN_RANDOM = "e98c09a1f15949f99403c27d9fc45dfa"
-LOGIN_SIGNATURE = "C5118DA49746AF4504F6C4967C5C50B4"
-LOGIN_TIMESTAMP = 1773236871
-
-# 👇 ဇယားဆွဲမည့် သော့ (၅ မိနစ်ပြည့်တိုင်း ဤနေရာတွင် Manual လာလဲပေးရပါမည်) 👇
-DATA_RANDOM = "ff5adfece70a45c2b5152b2526b50a3a"
-DATA_SIGNATURE = "40D308D7D2D214B247B6CF480E1FB85D"
-DATA_TIMESTAMP = 1773237062
-# ============================================
-
+  
 bot = Bot(token=TELEGRAM_BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
 dp = Dispatcher()
 
-# 💡 6Win 30 Seconds အတွက် သီးသန့် Database 
+# MongoDB Setup
 db_client = motor.motor_asyncio.AsyncIOMotorClient(MONGO_URI)
 db = db_client['bigwin_database'] 
-history_collection = db['6lottery_wingo30_history'] 
-predictions_collection = db['6lottery_wingo30_predictions'] 
+history_collection = db['game_history'] 
+predictions_collection = db['predictions'] 
 
+# ==========================================
+# 🔧 2. SYSTEM VARIABLES 
+# ==========================================
 CURRENT_TOKEN = ""
 LAST_PROCESSED_ISSUE = None
 MAIN_MESSAGE_ID = None 
 SESSION_START_ISSUE = None 
 LAST_CAPTION_EDIT_TIME = 0 
-LAST_HEARTBEAT = time.time()
 
 BASE_HEADERS = {
-    'authority': '6lotteryapi.com',
+    'authority': 'api.bigwinqaz.com',
     'accept': 'application/json, text/plain, */*',
     'content-type': 'application/json;charset=UTF-8',
-    'origin': 'https://www.6win566.com',
-    'referer': 'https://www.6win566.com/',
+    'origin': 'https://www.777bigwingame.app',
+    'referer': 'https://www.777bigwingame.app/',
     'user-agent': 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36',
 }
 
@@ -84,10 +72,13 @@ async def init_db():
     try:
         await history_collection.create_index("issue_number", unique=True)
         await predictions_collection.create_index("issue_number", unique=True)
-        print("🗄 MongoDB ချိတ်ဆက်မှု အောင်မြင်ပါသည်။ (🚀 1024x768 Perfect Layout + ULTIMATE AI Edition)")
+        print("🗄 MongoDB ချိတ်ဆက်မှု အောင်မြင်ပါသည်။ (⏱️ Zero-Latency Timer & Ultimate AI Enabled)")
     except Exception as e:
-        print(f"❌ MongoDB Error: {e}")
+        pass
 
+# ==========================================
+# 🔑 3. ASYNC API FUNCTIONS
+# ==========================================
 async def fetch_with_retry(session, url, headers, json_data, retries=3):
     for attempt in range(retries):
         try:
@@ -100,22 +91,22 @@ async def fetch_with_retry(session, url, headers, json_data, retries=3):
 async def login_and_get_token(session: aiohttp.ClientSession):
     global CURRENT_TOKEN
     json_data = {
-        'username': USERNAME, 
-        'pwd': PASSWORD,
+        'username': '959680090540',
+        'pwd': 'Mitheint11',
         'phonetype': 1,
         'logintype': 'mobile',
         'packId': '',
-        'deviceId': 'b9b753a9f874897574d7fa72ff84374c',
+        'deviceId': '51ed4ee0f338a1bb24063ffdfcd31ce6',
         'language': 7,
-        'random': LOGIN_RANDOM,
-        'signature': LOGIN_SIGNATURE,
-        'timestamp': LOGIN_TIMESTAMP,
+        'random': '452fa309995244de92103c0afbefbe9a',
+        'signature': '202C655177E9187D427A26F3CDC00A52',
+        'timestamp': 1773021618,
     }
-    data = await fetch_with_retry(session, 'https://6lotteryapi.com/api/webapi/Login', BASE_HEADERS, json_data)
+    data = await fetch_with_retry(session, 'https://api.bigwinqaz.com/api/webapi/Login', BASE_HEADERS, json_data)
     if data and data.get('code') == 0:
         token_str = data.get('data', {}) if isinstance(data.get('data'), str) else data.get('data', {}).get('token', '')
         CURRENT_TOKEN = f"Bearer {token_str}"
-        print("✅ 6WIN ဆာဗာသို့ Login အောင်မြင်ပါသည်။\n")
+        print("✅ Login အောင်မြင်ပါသည်။ Token အသစ် ရရှိပါပြီ。\n")
         return True
     return False
 
@@ -126,7 +117,6 @@ def ultimate_ai_predict(history_docs, recent_preds):
     if len(history_docs) < 20: 
         return "BIG", 55.0, "⏳ Data စုဆောင်းဆဲ..."
     
-    # ⏱️ Speed Optimization: တွက်ချက်မှုမြန်စေရန် နောက်ဆုံး ပွဲ ၅၀၀ ကိုသာ သုံးမည်
     docs = list(reversed(history_docs))[-500:] 
     
     sizes = [d.get('size', 'BIG') for d in docs]
@@ -136,9 +126,7 @@ def ultimate_ai_predict(history_docs, recent_preds):
     score_b, score_s = 0.0, 0.0
     logic_used = ""
 
-    # ---------------------------------------------------------
-    # ⚙️ 1. SELF-CORRECTING AUTO-TUNING (Reinforcement Weights)
-    # ---------------------------------------------------------
+    # 1. AUTO-TUNING
     ml_weight = 2.0
     pattern_weight = 1.5
     house_edge_weight = 2.0
@@ -146,31 +134,25 @@ def ultimate_ai_predict(history_docs, recent_preds):
     if len(recent_preds) >= 5:
         wins = sum(1 for p in recent_preds[:5] if p.get('win_lose') == 'WIN ✅')
         if wins <= 2:
-            # ၅ ပွဲမှာ ၂ ပွဲပဲ နိုင်ရင် AI က လမ်းကြောင်းမှားနေပြီဟု ယူဆကာ Weights များကို Auto ပြင်မည်
-            ml_weight = 3.0 # ML ကို ပိုအားကိုးမည်
-            pattern_weight = 0.5 # ရိုးရိုး Pattern များကို လျှော့ချမည်
-            logic_used += "🔄 <b>Auto-Tuning:</b> လမ်းကြောင်းပြောင်းနေသဖြင့် ML Weights ကို မြှင့်တင်ထားသည်။\n"
+            ml_weight = 3.0 
+            pattern_weight = 0.5 
+            logic_used += "🔄 <b>Auto-Tuning:</b> Weights အလိုအလျောက် ချိန်ညှိထားသည်။\n"
 
-    # ---------------------------------------------------------
-    # ⚙️ 2. CASINO HOUSE EDGE ANALYSIS (Standard Deviation Balance)
-    # ---------------------------------------------------------
+    # 2. HOUSE EDGE ANALYSIS
     last_100_sizes = sizes[-100:] if len(sizes) >= 100 else sizes
     b_100 = last_100_sizes.count('BIG')
     s_100 = last_100_sizes.count('SMALL')
     
-    # 55% ထက်ကျော်လွန်နေပါက ဆာဗာမှ မျှခြေပြန်ဆွဲချမည်ဟု ယူဆသည်
     if b_100 > (len(last_100_sizes) * 0.55): 
         score_s += house_edge_weight
-        logic_used += f"├ ⚖️ <b>House Edge:</b> BIG အရမ်းများနေသဖြင့် ကာစီနိုမှ SMALL ကို ပြန်ချပေးနိုင်ပါသည်။\n"
+        logic_used += f"├ ⚖️ <b>House Edge:</b> မျှခြေပြန်ဆွဲချမည်။ (SMALL)\n"
     elif s_100 > (len(last_100_sizes) * 0.55): 
         score_b += house_edge_weight
-        logic_used += f"├ ⚖️ <b>House Edge:</b> SMALL အရမ်းများနေသဖြင့် ကာစီနိုမှ BIG ကို ပြန်ချပေးနိုင်ပါသည်။\n"
+        logic_used += f"├ ⚖️ <b>House Edge:</b> မျှခြေပြန်ဆွဲချမည်။ (BIG)\n"
 
-    # ---------------------------------------------------------
-    # ⚙️ 3. TRUE MACHINE LEARNING ENSEMBLE (RF + Gradient Boosting)
-    # ---------------------------------------------------------
+    # 3. MACHINE LEARNING ENSEMBLE
     X, y = [], []
-    window = 5 # နောက်ဆုံး ၅ ပွဲ၏ Data Enrichment ကို သုံးမည်
+    window = 5 
     
     def encode_size(s): return 1 if s == 'BIG' else 0
     def encode_parity(p): return 1 if p == 'EVEN' else 0
@@ -178,7 +160,6 @@ def ultimate_ai_predict(history_docs, recent_preds):
     for i in range(len(sizes) - window):
         row = []
         for j in range(window):
-            # အချက်အလက်များကို ပေါင်းစပ်ထည့်သွင်းခြင်း (Size, Number, Parity)
             row.append(encode_size(sizes[i+j]))
             row.append(numbers[i+j])
             row.append(encode_parity(parities[i+j]))
@@ -186,86 +167,69 @@ def ultimate_ai_predict(history_docs, recent_preds):
         y.append(encode_size(sizes[i+window]))
         
     if len(X) > 20:
-        # Model 1: Random Forest
         rf_clf = RandomForestClassifier(n_estimators=50, max_depth=5, random_state=42)
         rf_clf.fit(X, y)
         
-        # Model 2: Gradient Boosting (XGBoost ၏ အခြေခံ)
         gb_clf = GradientBoostingClassifier(n_estimators=50, learning_rate=0.1, max_depth=3, random_state=42)
         gb_clf.fit(X, y)
         
-        # Current feature vector for prediction
         current_features = []
         for j in range(1, window + 1):
             current_features.append(encode_size(sizes[-j]))
             current_features.append(numbers[-j])
             current_features.append(encode_parity(parities[-j]))
             
-        # AI ခန့်မှန်းချက်များကို ရယူခြင်း
         rf_pred = rf_clf.predict([current_features])[0]
         rf_prob = max(rf_clf.predict_proba([current_features])[0])
         
         gb_pred = gb_clf.predict([current_features])[0]
         gb_prob = max(gb_clf.predict_proba([current_features])[0])
         
-        # AI နှစ်ခု၏ အဖြေတူညီပါက အမှတ်ပိုပေးမည် (Ensemble Agreement)
         if rf_pred == gb_pred:
             if rf_pred == 1: score_b += (rf_prob * ml_weight * 1.5)
             else: score_s += (rf_prob * ml_weight * 1.5)
-            logic_used += "├ 🤖 <b>AI Ensemble:</b> RF နှင့် Gradient Boosting နှစ်ခုလုံး အဖြေတူညီပါသည်။\n"
+            logic_used += "├ 🤖 <b>AI Ensemble:</b> Algorithm ၂ မျိုးလုံး တူညီသည်။\n"
         else:
-            # မတူညီပါက Probability ပိုများသောကောင်ကို ယူမည်
             if rf_prob > gb_prob:
                 if rf_pred == 1: score_b += (rf_prob * ml_weight)
                 else: score_s += (rf_prob * ml_weight)
             else:
                 if gb_pred == 1: score_b += (gb_prob * ml_weight)
                 else: score_s += (gb_prob * ml_weight)
-            logic_used += "├ 🤖 <b>AI Algorithms:</b> အဆင့်မြင့် Data Enrichment မှ ခန့်မှန်းပေးထားသည်။\n"
+            logic_used += "├ 🤖 <b>AI Prediction:</b> Data မှတ်တမ်းများအရ ခန့်မှန်းသည်။\n"
 
-    # ---------------------------------------------------------
-    # ⚙️ 4. RECENT PATTERN RECOGNITION (Short-term Memory)
-    # ---------------------------------------------------------
+    # 4. PATTERN RECOGNITION
     if len(sizes) >= 3:
         if sizes[-1] != sizes[-2] and sizes[-2] != sizes[-3]:
-            # ခုတ်ချိုး
             pred_pattern = 'BIG' if sizes[-1] == 'SMALL' else 'SMALL'
             if pred_pattern == 'BIG': score_b += pattern_weight
             else: score_s += pattern_weight
-            logic_used += "├ 🏓 <b>Short-Term:</b> ခုတ်ချိုး (Ping-Pong) ပုံစံ တွေ့ရသည်။\n"
+            logic_used += "├ 🏓 <b>Pattern:</b> ခုတ်ချိုး\n"
         elif sizes[-1] == sizes[-2] == sizes[-3]:
-            # အတန်းရှည်
             if sizes[-1] == 'BIG': score_b += pattern_weight
             else: score_s += pattern_weight
-            logic_used += "├ 🐉 <b>Short-Term:</b> အတန်းရှည် (Dragon) ပုံစံ တွေ့ရသည်။\n"
+            logic_used += "├ 🐉 <b>Pattern:</b> အတန်းရှည်\n"
 
-    # ---------------------------------------------------------
-    # 🎯 FINAL CALCULATION
-    # ---------------------------------------------------------
+    # FINAL CALCULATION
     final_pred = "BIG" if score_b > score_s else "SMALL"
     total_score = score_b + score_s
     
     if total_score == 0: 
         return "BIG", 55.0, logic_used + "└ ⚠️ လုံလောက်သော အချက်အလက် မရှိသေးပါ။"
     
-    # ဖြစ်နိုင်ခြေ ရာခိုင်နှုန်းကို AI စံနှုန်း 70% မှ 98% ကြား ချိန်ညှိခြင်း
     calc_prob = (max(score_b, score_s) / total_score) * 100
     final_prob = min(max(calc_prob, 72.0), 98.0) 
     
-    logic_used += f"└ 🎯 <b>ဆုံးဖြတ်ချက်:</b> {final_prob:.1f}% သေချာပါသည်။"
-    
-    return final_pred, round(final_prob, 1), logic_used
+    return final_pred, final_prob, logic_used
 
 # ==========================================
-# 🎨 5. DYNAMIC GRAPH GENERATOR (Exact 1024x768 Perfect Layout)
+# 🎨 5. DYNAMIC GRAPH GENERATOR (1024x768 Original Style)
 # ==========================================
 def generate_winrate_chart(predictions):
     wins, losses = 0, 0
     history_wr, bar_colors, dots_list = [], [], []
     
-    latest_preds = list(reversed(predictions))[-20:]
-    
-    for p in latest_preds: 
+    for p in reversed(predictions): 
         if 'WIN' in p.get('win_lose', ''):
             wins += 1
             bar_colors.append('#26a69a') 
@@ -280,24 +244,17 @@ def generate_winrate_chart(predictions):
     total_played = wins + losses
     win_rate = int((wins / total_played * 100)) if total_played > 0 else 0
 
-    # 💡 Resolution အတိအကျ သတ်မှတ်ထားသည်
-    fig = plt.figure(figsize=(10.24, 7.68), facecolor='#1e222d')
-    
-    # 💡 ဂရပ်ဇယားကို ပုံရဲ့ အပေါ်ဘက်ကို တင်ပေးလိုက်ပြီး အောက်ဘက် ၄၀% ကို စာသားအတွက် ဖယ်ထားပေးသည်
-    # [Left, Bottom, Width, Height]
-    ax = fig.add_axes([0.1, 0.40, 0.8, 0.45])
+    fig, ax = plt.subplots(figsize=(10.24, 7.68), facecolor='#1e222d') 
     ax.set_facecolor('#1e222d')
-    
-    ax.set_xlim(-0.5, 19.5)
     
     if total_played > 0:
         x = np.arange(total_played)
-        ax.bar(x, [55]*total_played, color=bar_colors, width=0.8, bottom=0)
-        ax.plot(x, history_wr, color='#2979ff', linewidth=3.5, marker='o', markersize=7, markerfacecolor='#1e222d', markeredgecolor='#2979ff', markeredgewidth=2)
+        ax.bar(x, [55]*total_played, color=bar_colors, width=0.9, bottom=0)
+        ax.plot(x, history_wr, color='#2979ff', linewidth=3, marker='o', markersize=6, markerfacecolor='#1e222d', markeredgecolor='#2979ff', markeredgewidth=2)
     
     ax.set_ylim(0, 105)
     ax.set_yticks([0, 25, 50, 75, 100])
-    ax.set_yticklabels(['0%', '25%', '50%', '75%', '100%'], color='#787b86', fontsize=12)
+    ax.set_yticklabels(['0%', '25%', '50%', '75%', '100%'], color='#787b86', fontsize=10)
     ax.set_xticks([])
     
     ax.spines['top'].set_visible(False)
@@ -306,33 +263,29 @@ def generate_winrate_chart(predictions):
     ax.spines['bottom'].set_color('#363a45')
     ax.grid(axis='y', color='#363a45', linestyle='-', linewidth=0.5)
     
-    # 💡 စာသားများကို ဂရပ်အောက်ခြေမှ လွတ်ကင်းအောင် နေရာအတိအကျချထားသည်
-    fig.text(0.5, 0.92, "WINRATE TRACKING", color='white', fontsize=26, fontweight='bold', ha='center')
-    
-    fig.text(0.5, 0.28, f"{win_rate}%", color='white', fontsize=45, fontweight='bold', ha='center')
-    fig.text(0.35, 0.20, f"WINS: {wins}", color='#26a69a', fontsize=20, ha='center', fontweight='bold')
-    fig.text(0.65, 0.20, f"LOSSES: {losses}", color='#ef5350', fontsize=20, ha='center', fontweight='bold')
-    fig.text(0.5, 0.14, f"PREDICTION COUNT: {total_played}/20", color='white', fontsize=14, ha='center')
-    fig.text(0.5, 0.09, "Recent Predictions (Oldest ➔ Latest)", color='#787b86', fontsize=12, ha='center')
+    plt.suptitle("WINRATE TRACKING", color='white', fontsize=24, fontweight='bold', y=0.96)
+    plt.figtext(0.5, 0.05, f"{win_rate}%", color='white', fontsize=34, fontweight='bold', ha='center')
+    plt.figtext(0.38, 0.0, f"WINS: {wins}", color='#26a69a', fontsize=16, ha='center', fontweight='bold')
+    plt.figtext(0.62, 0.0, f"LOSSES: {losses}", color='#ef5350', fontsize=16, ha='center', fontweight='bold')
+    plt.figtext(0.5, -0.05, f"PREDICTION COUNT: {total_played}/20", color='white', fontsize=14, ha='center')
+    plt.figtext(0.5, -0.11, "Recent Predictions (Oldest ➔ Latest)", color='#787b86', fontsize=12, ha='center')
 
-    # အလုံးလေးများ
     if len(dots_list) > 0:
-        dot_ax = fig.add_axes([0.1, 0.04, 0.8, 0.04]) 
+        dot_ax = fig.add_axes([0.1, -0.2, 0.8, 0.08]) 
         dot_ax.set_axis_off()
         dot_ax.set_xlim(0, 20) 
         dot_ax.set_ylim(0, 1)
-        colors = dots_list[-20:]
+        colors = dots_list
         n_dots = len(colors)
         start_x = (20 - n_dots) / 2.0
         x_coords = [start_x + i + 0.5 for i in range(n_dots)]
         y_coords = [0.5] * n_dots
-        dot_ax.scatter(x_coords, y_coords, s=250, c=colors, edgecolors='white', linewidths=1.5, zorder=5)
+        dot_ax.scatter(x_coords, y_coords, s=300, c=colors, edgecolors='white', linewidths=1.5, zorder=5)
             
-    fig.text(0.5, 0.01, "DEV-WANG LIN", color='#787b86', fontsize=14, fontweight='bold', ha='center', alpha=1)
+    plt.figtext(0.5, -0.28, "DEV-WANG LIN", color='white', fontsize=18, fontweight='bold', ha='center', alpha=1)
 
     buf = io.BytesIO()
-    # ဖြတ်ချခြင်းမပြုဘဲ Resolution အတိအကျထုတ်ယူသည်
-    plt.savefig(buf, format='png', dpi=100, facecolor='#1e222d')
+    plt.savefig(buf, format='png', bbox_inches='tight', dpi=100, facecolor='#1e222d')
     buf.seek(0)
     plt.close(fig)
     return buf
@@ -351,12 +304,10 @@ async def check_game_and_predict(session: aiohttp.ClientSession):
 
     json_data = {
         'pageSize': 10, 'pageNo': 1, 'typeId': 30, 'language': 7,
-        'random': DATA_RANDOM,
-        'signature': DATA_SIGNATURE,
-        'timestamp': DATA_TIMESTAMP,
+        'random': '1ef0a7aca52b4c71975c031dda95150e', 'signature': '7D26EE375971781D1BC58B7039B409B7', 'timestamp': 1772985040,
     }
 
-    data = await fetch_with_retry(session, 'https://6lotteryapi.com/api/webapi/GetNoaverageEmerdList', headers, json_data)
+    data = await fetch_with_retry(session, 'https://api.bigwinqaz.com/api/webapi/GetNoaverageEmerdList', headers, json_data)
     if not data or data.get('code') != 0:
         if data and (data.get('code') == 401 or "token" in str(data.get('msg')).lower()): CURRENT_TOKEN = ""
         return
@@ -412,9 +363,6 @@ async def check_game_and_predict(session: aiohttp.ClientSession):
     if current_session_count >= 20: 
         SESSION_START_ISSUE = next_issue
     
-    # ==============================================================
-    # 🧠 CALCULATE LOSE STREAK & GET PREDICTION
-    # ==============================================================
     recent_preds_cursor = predictions_collection.find({"win_lose": {"$ne": None}}).sort("issue_number", -1).limit(10)
     recent_preds = await recent_preds_cursor.to_list(length=10)
     
@@ -431,13 +379,14 @@ async def check_game_and_predict(session: aiohttp.ClientSession):
     try:
         mem_pred, mem_prob, mem_logic = await asyncio.to_thread(ultimate_ai_predict, history_docs, recent_preds)
         predicted = "BIG (အကြီး) 🔴" if mem_pred == "BIG" else "SMALL (အသေး) 🟢"
+        base_prob = mem_prob
         reason = f"🧠 <b>Ultimate AI Engine</b>\n{mem_logic}"
     except Exception as e:
         predicted = "BIG (အကြီး) 🔴"
-        mem_prob = 55.0
-        reason = f"⚠️ AI Processing Error: {e}"
+        base_prob = 55.0
+        reason = "⚠️ Memory Syncing Error..."
     
-    final_prob = min(max(round(mem_prob, 1), 60.0), 98.0)
+    final_prob = min(max(round(base_prob, 1), 60.0), 98.0)
     predicted_result_db = "BIG" if "BIG" in predicted else "SMALL"
     
     await predictions_collection.update_one(
@@ -473,17 +422,18 @@ async def check_game_and_predict(session: aiohttp.ClientSession):
     table_str += "</code>"
 
     # ⚡ ချက်ချင်းအချိန်ဆွဲယူမည့် Function
+    # 💡 ဒီနေရာမှာ အရင်က ပိတ်ထားခဲ့တဲ့ စာကြောင်းတွေကို ပြန်ဖွင့်ပေးလိုက်ပါပြီ
     def get_realtime_caption():
         sec_left = 30 - (int(time.time()) % 30)
         if sec_left == 30: sec_left = 0 # ၃၀ စက္ကန့်ပြည့်ချိန်တွင် 0s ဟုပြရန်
         return (
-            f"<b>🏆 6WIN GO (30 SECONDS)</b>\n"
+            f"<b>WIN GO 30 SECONDS</b>\n"
             f"⏰ Next Result In: <b>{sec_left}s</b>\n\n"
             f"{table_str}\n"
             f"🅿️ <b>Period:</b> {next_issue[:3]}**{next_issue[-4:]}\n"
             f"🎯 <b>Predict: {predicted}</b>\n"
             f"📈 <b>ဖြစ်နိုင်ခြေ:</b> {final_prob}%\n"
-            f"💡 <b>သုံးသပ်ချက်:</b>\n"
+            f"💡 <b>အကြောင်းပြချက်:</b>\n"
             f"{reason}\n"
             f"━━━━━━━━━━━━━━━━━━\n"
             f"{bet_advice}"
@@ -539,10 +489,10 @@ async def auto_broadcaster():
 
 @dp.message(Command("start"))
 async def send_welcome(message: types.Message):
-    await message.reply("👋 မင်္ဂလာပါ။ 6WIN 1024x768 Perfect Layout + Ultimate AI အသင့်ဖြစ်နေပါပြီ။")
+    await message.reply("👋 မင်္ဂလာပါ။ စနစ်က Zero-Latency Timer ဖြင့် လုံးဝတိကျစွာ အလုပ်လုပ်နေပါပြီ။")
 
 async def main():
-    print("🚀 Aiogram Bigwin Bot (1024x768 + Ultimate AI Edition) စတင်နေပါပြီ...\n")
+    print("🚀 Aiogram Bigwin Bot (Zero-Latency Timer Edition) စတင်နေပါပြီ...\n")
     await bot.delete_webhook(drop_pending_updates=True)
     asyncio.create_task(auto_broadcaster())
     await dp.start_polling(bot)
