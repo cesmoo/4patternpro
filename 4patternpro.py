@@ -244,7 +244,7 @@ def generate_winrate_chart(predictions):
     total_played = wins + losses
     win_rate = int((wins / total_played * 100)) if total_played > 0 else 0
 
-    fig, ax = plt.subplots(figsize=(10.24, 7.68), facecolor='#1e222d') 
+    fig = plt.figure(figsize=(10.24, 7.68), facecolor='#1e222d')
     ax.set_facecolor('#1e222d')
     
     if total_played > 0:
