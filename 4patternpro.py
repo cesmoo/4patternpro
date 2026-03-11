@@ -229,7 +229,9 @@ def generate_winrate_chart(predictions):
     wins, losses = 0, 0
     history_wr, bar_colors, dots_list = [], [], []
     
-    for p in reversed(predictions): 
+    latest_preds = list(reversed(predictions))[-20:]
+    
+    for p in latest_preds: 
         if 'WIN' in p.get('win_lose', ''):
             wins += 1
             bar_colors.append('#26a69a') 
@@ -244,17 +246,23 @@ def generate_winrate_chart(predictions):
     total_played = wins + losses
     win_rate = int((wins / total_played * 100)) if total_played > 0 else 0
 
-    fig = plt.figure(figsize=(10.24, 7.68), facecolor='#1e222d')
+    # 💡 10.24 inches x 100 DPI = 1024px Width, 7.68 inches x 100 DPI = 768px Height အတိအကျ
+    fig = plt.figure(figsize=(10.24, 7.68), facecolor='#1e222d') 
+    
+    # 💡 ဂရပ်ဇယားကို ပုံရဲ့ အပေါ်ဘက်တွင် နေရာချထားသည် (x, y, width, height)
+    ax = fig.add_axes([0.1, 0.45, 0.8, 0.40])
     ax.set_facecolor('#1e222d')
+    
+    ax.set_xlim(-0.5, 19.5)
     
     if total_played > 0:
         x = np.arange(total_played)
-        ax.bar(x, [55]*total_played, color=bar_colors, width=0.9, bottom=0)
-        ax.plot(x, history_wr, color='#2979ff', linewidth=3, marker='o', markersize=6, markerfacecolor='#1e222d', markeredgecolor='#2979ff', markeredgewidth=2)
+        ax.bar(x, [55]*total_played, color=bar_colors, width=0.8, bottom=0)
+        ax.plot(x, history_wr, color='#2979ff', linewidth=3.5, marker='o', markersize=7, markerfacecolor='#1e222d', markeredgecolor='#2979ff', markeredgewidth=2)
     
     ax.set_ylim(0, 105)
     ax.set_yticks([0, 25, 50, 75, 100])
-    ax.set_yticklabels(['0%', '25%', '50%', '75%', '100%'], color='#787b86', fontsize=10)
+    ax.set_yticklabels(['0%', '25%', '50%', '75%', '100%'], color='#787b86', fontsize=12)
     ax.set_xticks([])
     
     ax.spines['top'].set_visible(False)
@@ -263,29 +271,33 @@ def generate_winrate_chart(predictions):
     ax.spines['bottom'].set_color('#363a45')
     ax.grid(axis='y', color='#363a45', linestyle='-', linewidth=0.5)
     
-    plt.suptitle("WINRATE TRACKING", color='white', fontsize=24, fontweight='bold', y=0.96)
-    plt.figtext(0.5, 0.05, f"{win_rate}%", color='white', fontsize=34, fontweight='bold', ha='center')
-    plt.figtext(0.38, 0.0, f"WINS: {wins}", color='#26a69a', fontsize=16, ha='center', fontweight='bold')
-    plt.figtext(0.62, 0.0, f"LOSSES: {losses}", color='#ef5350', fontsize=16, ha='center', fontweight='bold')
-    plt.figtext(0.5, -0.05, f"PREDICTION COUNT: {total_played}/20", color='white', fontsize=14, ha='center')
-    plt.figtext(0.5, -0.11, "Recent Predictions (Oldest ➔ Latest)", color='#787b86', fontsize=12, ha='center')
+    # 💡 စာသားများကို ဂရပ်အောက်ခြေမှ လွတ်ကင်းအောင် (0.0 မှ 1.0 အတွင်း) တိကျစွာ နေရာချထားသည်
+    fig.text(0.5, 0.90, "WINRATE TRACKING", color='white', fontsize=26, fontweight='bold', ha='center')
+    
+    fig.text(0.5, 0.30, f"{win_rate}%", color='white', fontsize=45, fontweight='bold', ha='center')
+    fig.text(0.35, 0.22, f"WINS: {wins}", color='#26a69a', fontsize=20, ha='center', fontweight='bold')
+    fig.text(0.65, 0.22, f"LOSSES: {losses}", color='#ef5350', fontsize=20, ha='center', fontweight='bold')
+    fig.text(0.5, 0.16, f"PREDICTION COUNT: {total_played}/20", color='white', fontsize=14, ha='center')
+    fig.text(0.5, 0.11, "Recent Predictions (Oldest ➔ Latest)", color='#787b86', fontsize=12, ha='center')
 
+    # အလုံးလေးများ
     if len(dots_list) > 0:
-        dot_ax = fig.add_axes([0.1, -0.2, 0.8, 0.08]) 
+        dot_ax = fig.add_axes([0.1, 0.05, 0.8, 0.04]) 
         dot_ax.set_axis_off()
         dot_ax.set_xlim(0, 20) 
         dot_ax.set_ylim(0, 1)
-        colors = dots_list
+        colors = dots_list[-20:]
         n_dots = len(colors)
         start_x = (20 - n_dots) / 2.0
         x_coords = [start_x + i + 0.5 for i in range(n_dots)]
         y_coords = [0.5] * n_dots
-        dot_ax.scatter(x_coords, y_coords, s=300, c=colors, edgecolors='white', linewidths=1.5, zorder=5)
+        dot_ax.scatter(x_coords, y_coords, s=250, c=colors, edgecolors='white', linewidths=1.5, zorder=5)
             
-    plt.figtext(0.5, -0.28, "DEV-WANG LIN", color='white', fontsize=18, fontweight='bold', ha='center', alpha=1)
+    fig.text(0.5, 0.01, "DEV-WANG LIN", color='#787b86', fontsize=14, fontweight='bold', ha='center', alpha=1)
 
     buf = io.BytesIO()
-    plt.savefig(buf, format='png', bbox_inches='tight', dpi=100, facecolor='#1e222d')
+    # 💡 [အရေးကြီးဆုံးပြင်ဆင်ချက်] bbox_inches='tight' ကို လုံးဝ ဖြုတ်ချလိုက်ပါသည်။ ထို့ကြောင့် 1024x768 အတိအကျသာ ထွက်ပါမည်။
+    plt.savefig(buf, format='png', dpi=100, facecolor='#1e222d')
     buf.seek(0)
     plt.close(fig)
     return buf
