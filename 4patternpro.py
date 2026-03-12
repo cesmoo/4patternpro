@@ -102,16 +102,16 @@ async def fetch_with_retry(session, url, headers, json_data, retries=1):
 async def login_and_get_token(session: aiohttp.ClientSession):
     global CURRENT_TOKEN
     json_data = {
-        'username': USERNAME, 
-        'pwd': PASSWORD,
+        'username': '959675323878',
+        'pwd': 'Mitheint11',
         'phonetype': 1,
         'logintype': 'mobile',
         'packId': '',
         'deviceId': '51ed4ee0f338a1bb24063ffdfcd31ce6',
         'language': 7,
-        'random': '452fa309995244de92103c0afbefbe9a',
-        'signature': '202C655177E9187D427A26F3CDC00A52',
-        'timestamp': 1773021618,
+        'random': '4fc4413428be43faa1a3f30d9745ae3a',
+        'signature': '5458639AF428AC897FDFF1102D82EB9C',
+        'timestamp': 1773326030,
     }
     data = await fetch_with_retry(session, 'https://api.bigwinqaz.com/api/webapi/Login', BASE_HEADERS, json_data)
     if data and data.get('code') == 0:
@@ -335,9 +335,9 @@ async def check_game_and_predict(session: aiohttp.ClientSession):
 
     json_data = {
         'pageSize': 10, 'pageNo': 1, 'typeId': 30, 'language': 7,
-        'random': '452fa309995244de92103c0afbefbe9a',
-        'signature': '202C655177E9187D427A26F3CDC00A52',
-        'timestamp': 1773021618,
+        'random': '9ef85244056948ba8dcae7aee7758bf4', # ကိုယ်တိုင်လာလဲပေးရန်
+        'signature': '2EDB8C2B5264F62EC53116916A9EC05C',
+        'timestamp': 1773326133,
     }
 
     data = await fetch_with_retry(session, 'https://api.bigwinqaz.com/api/webapi/GetNoaverageEmerdList', headers, json_data)
