@@ -282,8 +282,8 @@ def generate_winrate_chart(predictions):
     # ---------------------------------------------------------
     # MIDDLE SECTION: The Big Winrate Circle & Boxes
     # ---------------------------------------------------------
-    # Title
-    fig.text(0.5, 0.93, "WINRATE TRACKING", color='#e5e7eb', fontsize=32, fontweight='bold', ha='center', letterspacing=2)
+    # Title (Removed letterspacing to fix the error)
+    fig.text(0.5, 0.93, "W I N R A T E   T R A C K I N G", color='#e5e7eb', fontsize=32, fontweight='bold', ha='center')
 
     # Center Circle (Winrate)
     circle_ax = fig.add_axes([0.35, 0.25, 0.3, 0.3], zorder=5)
@@ -481,7 +481,7 @@ async def check_game_and_predict(session: aiohttp.ClientSession):
         sec_left = 30 - (int(time.time()) % 30)
         if sec_left == 30: sec_left = 0 # ၃၀ စက္ကန့်ပြည့်ချိန်တွင် 0s ဟုပြရန်
         return (
-            f"<b>WIN GO 30 SECONDS</b>\n"
+            f"<b>🏆 WIN GO (30 SECONDS)</b>\n"
             f"⏰ Next Result In: <b>{sec_left}s</b>\n\n"
             f"{table_str}\n"
             f"🅿️ <b>Period:</b> {next_issue[:3]}**{next_issue[-4:]}\n"
