@@ -111,9 +111,9 @@ async def login_and_get_token(session: aiohttp.ClientSession):
         'packId': '',
         'deviceId': '51ed4ee0f338a1bb24063ffdfcd31ce6',
         'language': 7,
-        'random': '452fa309995244de92103c0afbefbe9a',
-        'signature': '202C655177E9187D427A26F3CDC00A52',
-        'timestamp': 1773021618,
+        'random': 'b531c8e6bd5e4eb1b8ee3a586000d8ae',
+        'signature': '7A1673DD7888D44AC733354DE855E4F6',
+        'timestamp': 1773320404,
     }
     data = await fetch_with_retry(session, 'https://api.bigwinqaz.com/api/webapi/Login', BASE_HEADERS, json_data)
     if data and data.get('code') == 0:
@@ -395,9 +395,9 @@ async def check_game_and_predict(session: aiohttp.ClientSession):
 
     json_data = {
         'pageSize': 10, 'pageNo': 1, 'typeId': 30, 'language': 7,
-        'random': '452fa309995244de92103c0afbefbe9a',
-        'signature': '202C655177E9187D427A26F3CDC00A52',
-        'timestamp': 1773021618,
+        'random': '203bf3580e5043deb8b57188100c2c6d',
+        'signature': '68315DC12A9F9ECABCE3952EB127513C',
+        'timestamp': 1773320516,
     }
 
     # 💡 [Anti-Lag System] Data ကိုအရင်ဆွဲမည်။ မရလျှင် အောက်က Timer Block သို့ တန်းသွားမည်။
