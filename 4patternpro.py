@@ -51,15 +51,16 @@ history_collection = db['game_history']
 predictions_collection = db['predictions'] 
 
 # ==========================================
-# 🔧 2. SYSTEM VARIABLES 
+# 🔧 2. SYSTEM VARIABLES & ANTI-LAG STATE
 # ==========================================
 CURRENT_TOKEN = ""
 LAST_PROCESSED_ISSUE = None
 MAIN_MESSAGE_ID = None 
 SESSION_START_ISSUE = None 
 LAST_CAPTION_EDIT_TIME = 0 
+API_ERROR_COUNT = 0 
 
-# 💡 [Anti-Lag System]
+# 💡 [Anti-Lag System] Timer မထစ်စေရန် နောက်ဆုံးအချက်အလက်ကို မှတ်သားထားမည့် State
 LAST_KNOWN_STATE = {
     "table_str": "<code>Data Loading...</code>",
     "next_issue": "Loading",
@@ -82,7 +83,7 @@ async def init_db():
     try:
         await history_collection.create_index("issue_number", unique=True)
         await predictions_collection.create_index("issue_number", unique=True)
-        print("🗄 MongoDB ချိတ်ဆက်မှု အောင်မြင်ပါသည်။ (🚀 Dynamic Wave Bars Edition)")
+        print("🗄 MongoDB ချိတ်ဆက်မှု အောင်မြင်ပါသည်။ (🚀 Accurate Trend Line Edition)")
     except Exception as e:
         pass
 
@@ -92,6 +93,7 @@ async def init_db():
 async def fetch_with_retry(session, url, headers, json_data, retries=1):
     for attempt in range(retries):
         try:
+            # 💡 [Fail-Fast] Data ဆွဲတာ ကြာပြီး စက္ကန့်တွေ ထစ်မနေစေရန် Timeout ကို 2 စက္ကန့်သာ ထားပါသည်
             async with session.post(url, headers=headers, json=json_data, timeout=2.0) as response:
                 if response.status == 200:
                     return await response.json()
@@ -122,7 +124,7 @@ async def login_and_get_token(session: aiohttp.ClientSession):
     return False
 
 # ==========================================
-# 🧠 4. THE ULTIMATE AI 
+# 🧠 4. THE ULTIMATE AI (Data Enrichment + Auto-Tuning + ML Ensemble + House Edge)
 # ==========================================
 def ultimate_ai_predict(history_docs, recent_preds):
     if len(history_docs) < 20: 
@@ -137,6 +139,7 @@ def ultimate_ai_predict(history_docs, recent_preds):
     score_b, score_s = 0.0, 0.0
     logic_used = ""
 
+    # 1. AUTO-TUNING
     ml_weight = 2.0
     pattern_weight = 1.5
     house_edge_weight = 2.0
@@ -148,6 +151,7 @@ def ultimate_ai_predict(history_docs, recent_preds):
             pattern_weight = 0.5 
             logic_used += "🔄 <b>Auto-Tuning:</b> Weights အလိုအလျောက် ချိန်ညှိထားသည်။\n"
 
+    # 2. HOUSE EDGE ANALYSIS
     last_100_sizes = sizes[-100:] if len(sizes) >= 100 else sizes
     b_100 = last_100_sizes.count('BIG')
     s_100 = last_100_sizes.count('SMALL')
@@ -159,6 +163,7 @@ def ultimate_ai_predict(history_docs, recent_preds):
         score_b += house_edge_weight
         logic_used += f"├ ⚖️ <b>House Edge:</b> မျှခြေပြန်ဆွဲချမည်။ (BIG)\n"
 
+    # 3. MACHINE LEARNING ENSEMBLE
     X, y = [], []
     window = 5 
     
@@ -206,6 +211,7 @@ def ultimate_ai_predict(history_docs, recent_preds):
                 else: score_s += (gb_prob * ml_weight)
             logic_used += "├ 🤖 <b>AI Prediction:</b> Data မှတ်တမ်းများအရ ခန့်မှန်းသည်။\n"
 
+    # 4. PATTERN RECOGNITION
     if len(sizes) >= 3:
         if sizes[-1] != sizes[-2] and sizes[-2] != sizes[-3]:
             pred_pattern = 'BIG' if sizes[-1] == 'SMALL' else 'SMALL'
@@ -217,6 +223,7 @@ def ultimate_ai_predict(history_docs, recent_preds):
             else: score_s += pattern_weight
             logic_used += "├ 🐉 <b>Pattern:</b> အတန်းရှည်\n"
 
+    # FINAL CALCULATION
     final_pred = "BIG" if score_b > score_s else "SMALL"
     total_score = score_b + score_s
     
@@ -229,7 +236,7 @@ def ultimate_ai_predict(history_docs, recent_preds):
     return final_pred, final_prob, logic_used
 
 # ==========================================
-# 🎨 5. DYNAMIC GRAPH GENERATOR (DYNAMIC WAVE BARS)
+# 🎨 5. DYNAMIC GRAPH GENERATOR (ACCURATE TREND LINE)
 # ==========================================
 def generate_winrate_chart(predictions):
     wins, losses = 0, 0
@@ -238,26 +245,21 @@ def generate_winrate_chart(predictions):
     latest_preds = list(reversed(predictions))[-20:]
     
     for i, p in enumerate(latest_preds): 
-        # 💡 ပုံထဲကလို တိုင်လေးတွေ အတိုအရှည်ဖြစ်စေရန် Issue Number ကိုအသုံးပြု၍ Stable Wave တွက်ချက်ခြင်း
-        try:
-            iss_val = int(p.get('issue_number', '0')[-4:])
-        except:
-            iss_val = i
-            
-        pseudo_rand = (iss_val * 997 + 13) % 100
+        current_played = i + 1
         
+        # 💡 [ပြင်ဆင်ချက်] လက်ရှိပွဲစဉ်ရောက်ချိန်အထိ Winrate ရာခိုင်နှုန်းအမှန်ကို တွက်ချက်မည်
         if 'WIN' in p.get('win_lose', ''):
             wins += 1
-            bar_colors.append('#00e5ff')  # Cyan Glow (အရောင်မပြောင်းပါ)
+            bar_colors.append('#00e5ff')  # Cyan Glow
             dots_list.append(('G', '#1de9b6'))
-            # 💡 အနိုင်တိုင်များကို (၄၅ မှ ၉၅) ကြား အတိုအရှည်ဖြစ်စေမည်
-            bar_heights.append(45 + (pseudo_rand % 51)) 
         else:
             losses += 1
-            bar_colors.append('#ff4444')  # Red Glow (အရောင်မပြောင်းပါ)
+            bar_colors.append('#ff4444')  # Red Glow
             dots_list.append(('R', '#ef5350'))
-            # 💡 အရှုံးတိုင်များကို (၁၅ မှ ၄၅) ကြား အတိုအရှည်ဖြစ်စေမည်
-            bar_heights.append(15 + (pseudo_rand % 31)) 
+            
+        current_wr = (wins / current_played) * 100
+        # 💡 [အရေးကြီးဆုံးပြင်ဆင်ချက်] တိုင်အမြင့် (bar height) သည် Line Graph ရဲ့ ရာခိုင်နှုန်း (current_wr) နှင့် တစ်ထပ်တည်းဖြစ်စေမည်
+        bar_heights.append(current_wr) 
             
     total_played = wins + losses
     win_rate = int((wins / total_played * 100)) if total_played > 0 else 0
@@ -265,28 +267,35 @@ def generate_winrate_chart(predictions):
     # 1024x768 Fixed Size with Sci-Fi Dark Background
     fig = plt.figure(figsize=(10.24, 7.68), facecolor='#1c1f26') 
     
+    # --- 1. TITLE ---
     fig.text(0.05, 0.90, "AI PERFORMANCE ANALYTICS", color='#ffffff', fontsize=32, fontweight='bold', ha='left')
 
-    # --- CIRCLE GAUGE (Left) ---
+    # --- 2. CIRCLE GAUGE (Left) ---
     ax_circle = fig.add_axes([0.08, 0.42, 0.35, 0.40])
     ax_circle.set_axis_off()
     ax_circle.set_xlim(0, 1)
     ax_circle.set_ylim(0, 1)
     
+    # Background arc
     theta_bg = np.linspace(-1.25*np.pi, 0.25*np.pi, 200)
     ax_circle.plot(0.5 + 0.45*np.cos(theta_bg), 0.5 + 0.45*np.sin(theta_bg), color='#2c313c', linewidth=12)
     
+    # Progress arc (Cyan)
     if win_rate > 0:
         end_angle = 0.25*np.pi - (win_rate/100) * 1.5 * np.pi
         theta_fg = np.linspace(0.25*np.pi, end_angle, 100)
+        # Main Line
         ax_circle.plot(0.5 + 0.45*np.cos(theta_fg), 0.5 + 0.45*np.sin(theta_fg), color='#00e5ff', linewidth=12)
+        # Glow Effect
         ax_circle.plot(0.5 + 0.45*np.cos(theta_fg), 0.5 + 0.45*np.sin(theta_fg), color='#00e5ff', linewidth=22, alpha=0.2)
             
+    # Text inside circle
     ax_circle.text(0.5, 0.75, f"{total_played}/20", color='#a3a8b5', fontsize=16, fontweight='bold', ha='center', va='center')
     ax_circle.text(0.5, 0.65, "TOTAL WINRATE", color='#7a8294', fontsize=12, fontweight='bold', ha='center', va='center')
     ax_circle.text(0.5, 0.48, f"{win_rate}%", color='#00e5ff', fontsize=65, fontweight='bold', ha='center', va='center')
     ax_circle.text(0.5, 0.32, "PREDICTIONS MADE", color='#7a8294', fontsize=12, fontweight='bold', ha='center', va='center')
     
+    # Finalised Badge
     badge = patches.FancyBboxPatch((0.35, 0.16), 0.3, 0.08, boxstyle="round,pad=0.03", fc="#164e63", ec="#00e5ff", lw=1.5)
     ax_circle.add_patch(badge)
     ax_circle.text(0.5, 0.20, "FINALISED ✓", color='#00e5ff', fontsize=11, fontweight='bold', ha='center', va='center')
@@ -294,40 +303,42 @@ def generate_winrate_chart(predictions):
     ax_circle.text(0.05, 0.05, "0", color='#7a8294', fontsize=12, fontweight='bold', ha='center')
     ax_circle.text(0.95, 0.05, "100%", color='#7a8294', fontsize=12, fontweight='bold', ha='center')
 
-    # --- BAR CHART (Right - Wavy Bars) ---
+    # --- 3. BAR CHART + TREND LINE (Right) ---
     fig.text(0.74, 0.85, "SESSION PERFORMANCE TREND", color='#a3a8b5', fontsize=14, fontweight='bold', ha='center')
     fig.lines.extend([plt.Line2D([0.55, 0.93], [0.83, 0.83], color='#2c313c', lw=2, transform=fig.transFigure)])
-    fig.lines.extend([plt.Line2D([0.55, 0.93], [0.45, 0.45], color='#2c313c', lw=2, transform=fig.transFigure)])
     
     ax_bar = fig.add_axes([0.55, 0.47, 0.38, 0.33])
     ax_bar.set_facecolor('#1c1f26')
     ax_bar.set_xlim(-0.5, 19.5)
-    ax_bar.set_ylim(0, 100)
+    ax_bar.set_ylim(0, 105) # y-axis ကို ရာခိုင်နှုန်း (၀ မှ ၁၀၅) အထိ သတ်မှတ်ထားသည်
     
     ax_bar.spines['top'].set_visible(False)
     ax_bar.spines['right'].set_visible(False)
     ax_bar.spines['left'].set_visible(False)
     ax_bar.spines['bottom'].set_visible(False)
     
-    ax_bar.set_yticks([25, 50, 75])
-    ax_bar.set_yticklabels(['', '', '']) 
+    # 💡 မျဉ်းကြောင်းများ (25%, 50%, 75%, 100%) ဖော်ပြပေးမည်
+    ax_bar.set_yticks([0, 25, 50, 75, 100])
+    ax_bar.set_yticklabels(['0%', '25%', '50%', '75%', '100%'], color='#7a8294', fontsize=10, fontweight='bold') 
+    ax_bar.tick_params(axis='y', length=0, pad=5)
     ax_bar.grid(axis='y', color='#2c313c', linestyle='-', linewidth=1.5)
     
     if total_played > 0:
         x_pos = np.arange(total_played)
-        # 1. Outer Glow Layer
+        
+        # 1. Outer Glow (အလင်းရောင်)
         ax_bar.bar(x_pos, bar_heights, color=bar_colors, width=0.8, alpha=0.15, zorder=2, align='center')
-        # 2. Solid Inner Core
+        # 2. Solid Inner Core (အူတိုင်)
         ax_bar.bar(x_pos, bar_heights, color=bar_colors, width=0.45, alpha=0.9, zorder=3, align='center')
-        # 3. Bright Top Cap
-        for i in range(total_played):
-            ax_bar.plot([x_pos[i]-0.25, x_pos[i]+0.25], [bar_heights[i], bar_heights[i]], color='white', linewidth=2.5, alpha=0.8, zorder=4)
+        
+        # 💡 3. Trend Line Graph (ဘားအမြင့်များအတိုင်း ဆက်ဆွဲပေးမည်)
+        ax_bar.plot(x_pos, bar_heights, color='#3b82f6', linewidth=2.5, marker='o', markersize=6, markerfacecolor='#1c1f26', markeredgecolor='#00e5ff', markeredgewidth=2, zorder=4)
         
     ax_bar.set_xticks(np.arange(20))
     ax_bar.set_xticklabels([str(i+1) for i in range(20)], color='#7a8294', fontsize=10)
 
-    # --- WINS & LOSSES BOXES ---
-    # WIN Box
+    # --- 4. WINS & LOSSES BOXES ---
+    # WIN Box (Cyan)
     ax_win = fig.add_axes([0.05, 0.22, 0.28, 0.16])
     ax_win.set_axis_off()
     ax_win.set_xlim(0, 1)
@@ -340,7 +351,7 @@ def generate_winrate_chart(predictions):
     ax_win.add_patch(circ_win)
     ax_win.text(0.85, 0.5, "✓", color='#004d40', fontsize=28, fontweight='bold', ha='center', va='center')
 
-    # LOSE Box
+    # LOSE Box (Red)
     ax_lose = fig.add_axes([0.35, 0.22, 0.28, 0.16])
     ax_lose.set_axis_off()
     ax_lose.set_xlim(0, 1)
@@ -352,14 +363,14 @@ def generate_winrate_chart(predictions):
     shield = patches.RegularPolygon((0.85, 0.5), numVertices=6, radius=0.25, orientation=np.pi/6, color='none', ec='#4d0000', lw=3)
     ax_lose.add_patch(shield)
 
-    # --- WATERMARK ---
+    # --- 5. WATERMARK ---
     ax_wm = fig.add_axes([0.65, 0.22, 0.30, 0.16])
     ax_wm.set_axis_off()
     ax_wm.text(0.5, 0.5, "DEV - WANG LIN", color='#ffffff', fontsize=26, fontweight='bold', style='italic', ha='center', va='center')
     ax_wm.plot([0.1, 0.9], [0.30, 0.30], color='#ffffff', lw=3)
     ax_wm.plot([0.1, 0.9], [0.70, 0.70], color='#ffffff', lw=3)
 
-    # --- TIMELINE (Dots) ---
+    # --- 6. TIMELINE (Dots) ---
     fig.text(0.05, 0.16, "FULL PREDICTION TIMELINE (Oldest to Latest)", color='#a3a8b5', fontsize=12, fontweight='bold', ha='left')
     
     ax_time = fig.add_axes([0.05, 0.05, 0.9, 0.08])
@@ -369,9 +380,11 @@ def generate_winrate_chart(predictions):
     
     if len(dots_list) > 0:
         for i, (char, color) in enumerate(dots_list):
-            ax_time.scatter(i, 0.5, s=600, c=color, edgecolors='none', zorder=5)
+            ax_time.scatter(i, 0.5, s=800, c=color, edgecolors='none', zorder=4, alpha=0.3) 
+            ax_time.scatter(i, 0.5, s=400, c=color, edgecolors='none', zorder=5, alpha=1.0)
             ax_time.text(i, 0.5, char, color='#ffffff', fontsize=14, fontweight='bold', ha='center', va='center', zorder=6)
 
+    # 💡 ဖြတ်ချခြင်းမပြုဘဲ 1024x768 အတိအကျထုတ်ယူသည်
     buf = io.BytesIO()
     plt.savefig(buf, format='png', dpi=100, facecolor='#1c1f26') 
     buf.seek(0)
@@ -379,10 +392,11 @@ def generate_winrate_chart(predictions):
     return buf
 
 # ==========================================
-# 🚀 6. MAIN LOGIC & UI UPDATER
+# 🚀 6. MAIN LOGIC & UI UPDATER (ANTI-LAG ZERO LATENCY)
 # ==========================================
 async def check_game_and_predict(session: aiohttp.ClientSession):
-    global CURRENT_TOKEN, LAST_PROCESSED_ISSUE, MAIN_MESSAGE_ID, SESSION_START_ISSUE, LAST_CAPTION_EDIT_TIME
+    global CURRENT_TOKEN, LAST_PROCESSED_ISSUE, MAIN_MESSAGE_ID, SESSION_START_ISSUE
+    global LAST_CAPTION_EDIT_TIME, API_ERROR_COUNT, LAST_KNOWN_STATE
     
     if not CURRENT_TOKEN:
         if not await login_and_get_token(session): return
@@ -397,9 +411,11 @@ async def check_game_and_predict(session: aiohttp.ClientSession):
         'timestamp': 1773326133,
     }
 
+    # 💡 [Anti-Lag System] Data ကိုအရင်ဆွဲမည်။ မရလျှင် အောက်က Timer Block သို့ တန်းသွားမည်။
     data = await fetch_with_retry(session, 'https://api.bigwinqaz.com/api/webapi/GetNoaverageEmerdList', headers, json_data)
     
     if data and data.get('code') == 0:
+        API_ERROR_COUNT = 0 
         records = data.get("data", {}).get("list", [])
         
         if records:
@@ -466,14 +482,13 @@ async def check_game_and_predict(session: aiohttp.ClientSession):
             try:
                 mem_pred, mem_prob, mem_logic = await asyncio.to_thread(ultimate_ai_predict, history_docs, recent_preds)
                 predicted = "BIG (အကြီး) 🔴" if mem_pred == "BIG" else "SMALL (အသေး) 🟢"
-                base_prob = mem_prob
                 reason = f"🧠 <b>Ultimate AI Engine</b>\n{mem_logic}"
             except Exception as e:
                 predicted = "BIG (အကြီး) 🔴"
-                base_prob = 55.0
-                reason = "⚠️ AI Engine Error"
+                mem_prob = 55.0
+                reason = "⚠️ AI Processing Error"
             
-            final_prob = min(max(round(base_prob, 1), 60.0), 98.0)
+            final_prob = min(max(round(mem_prob, 1), 60.0), 98.0)
             predicted_result_db = "BIG" if "BIG" in predicted else "SMALL"
             
             await predictions_collection.update_one(
@@ -508,6 +523,7 @@ async def check_game_and_predict(session: aiohttp.ClientSession):
                 table_str += f"{iss_short:<10}| {res_str:<7} | {wl_str}\n"
             table_str += "</code>"
 
+            # 💡 [Anti-Lag System] Data ရလာရင် Cache ထဲမှာ မှတ်ထားမည်
             LAST_KNOWN_STATE["table_str"] = table_str
             LAST_KNOWN_STATE["next_issue"] = next_issue
             LAST_KNOWN_STATE["predicted"] = predicted
@@ -515,6 +531,7 @@ async def check_game_and_predict(session: aiohttp.ClientSession):
             LAST_KNOWN_STATE["reason"] = reason
             LAST_KNOWN_STATE["bet_advice"] = bet_advice
             
+            # ပွဲသစ်ထွက်ချိန်တွင် ပုံဆွဲပြီး တင်ပေးမည်
             if is_new_issue or not MAIN_MESSAGE_ID:
                 img_buf = await asyncio.to_thread(generate_winrate_chart, session_preds)
                 unique_filename = f"winrate_chart_{int(time.time())}.png"
@@ -543,14 +560,18 @@ async def check_game_and_predict(session: aiohttp.ClientSession):
                     MAIN_MESSAGE_ID = msg.message_id
                 
                 LAST_CAPTION_EDIT_TIME = time.time()
-                return 
+                return # ပုံအသစ်တင်ပြီးပါက ဤနေရာမှရပ်မည်။
 
     elif data and data.get('code') != 0:
+        API_ERROR_COUNT += 1
         if data.get('code') == 401 or "token" in str(data.get('msg')).lower(): 
             CURRENT_TOKEN = ""
+    else:
+        # Timeout Error
+        API_ERROR_COUNT += 1
 
     # ==============================================================
-    # ⏱️ TIMER UPDATE BLOCK (Zero-Lag)
+    # ⏱️ [Zero-Lag] TIMER UPDATE BLOCK
     # ==============================================================
     current_time = time.time()
     if current_time - LAST_CAPTION_EDIT_TIME >= 1.5:
@@ -571,6 +592,9 @@ async def check_game_and_predict(session: aiohttp.ClientSession):
                 f"💡 <b>အကြောင်းပြချက်:</b>\n{LAST_KNOWN_STATE['reason']}\n"
                 f"━━━━━━━━━━━━━━━━━━\n{LAST_KNOWN_STATE['bet_advice']}"
             )
+            
+            if API_ERROR_COUNT >= 3:
+                tg_caption = f"⚠️ <b>[API သော့ သက်တမ်းကုန်သွားပါပြီ! အသစ်လဲပေးပါ]</b>\n\n" + tg_caption
 
             try:
                 await bot.edit_message_caption(chat_id=TELEGRAM_CHANNEL_ID, message_id=MAIN_MESSAGE_ID, caption=tg_caption, parse_mode="HTML")
@@ -583,20 +607,26 @@ async def check_game_and_predict(session: aiohttp.ClientSession):
             except Exception:
                 pass
 
+# ==========================================
+# 🔄 6. BACKGROUND TASK
+# ==========================================
 async def auto_broadcaster():
     await init_db() 
     async with aiohttp.ClientSession() as session:
         await login_and_get_token(session)
         while True:
-            await check_game_and_predict(session)
+            try:
+                await check_game_and_predict(session)
+            except Exception as e:
+                pass
             await asyncio.sleep(0.5) 
 
 @dp.message(Command("start"))
 async def send_welcome(message: types.Message):
-    await message.reply("👋 မင်္ဂလာပါ။ စနစ်က Zero-Latency Timer ဖြင့် လုံးဝတိကျစွာ အလုပ်လုပ်နေပါပြီ။")
+    await message.reply("👋 မင်္ဂလာပါ။ စနစ်က Zero-Lag Timer ဖြင့် လုံးဝတိကျစွာ အလုပ်လုပ်နေပါပြီ။")
 
 async def main():
-    print("🚀 Aiogram Bigwin Bot (Dynamic Wave Bars Edition) စတင်နေပါပြီ...\n")
+    print("🚀 Aiogram Bigwin Bot (Accurate Trend Graph Edition) စတင်နေပါပြီ...\n")
     await bot.delete_webhook(drop_pending_updates=True)
     asyncio.create_task(auto_broadcaster())
     await dp.start_polling(bot)
