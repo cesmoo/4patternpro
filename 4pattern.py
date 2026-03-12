@@ -31,45 +31,40 @@ load_dotenv()
 # ==========================================
 # ⚙️ 1. CONFIGURATION
 # ==========================================
-USERNAME = os.getenv("BIGWIN_USERNAME", "959675323878")
-PASSWORD = os.getenv("BIGWIN_PASSWORD", "Mitheint11")
+USERNAME = os.getenv("BIGWIN_USERNAME")
+PASSWORD = os.getenv("BIGWIN_PASSWORD")
 TELEGRAM_BOT_TOKEN = os.getenv("BOT_TOKEN")
 TELEGRAM_CHANNEL_ID = os.getenv("CHANNEL_ID")
 MONGO_URI = os.getenv("MONGO_URI") 
 
-if not all([TELEGRAM_BOT_TOKEN, TELEGRAM_CHANNEL_ID, MONGO_URI]):
+if not all([USERNAME, PASSWORD, TELEGRAM_BOT_TOKEN, TELEGRAM_CHANNEL_ID, MONGO_URI]):
     print("❌ Error: .env ဖိုင်ထဲတွင် အချက်အလက်များ ပြည့်စုံစွာ မပါဝင်ပါ။")
     exit()
-
-# 🔑========================================🔑
-# 👇 ဇယားဆွဲမည့် သော့ (၅ မိနစ်ပြည့်တိုင်း ဤနေရာတွင် Manual လာလဲပေးရပါမည်) 👇
-DATA_RANDOM = "ff5adfece70a45c2b5152b2526b50a3a"
-DATA_SIGNATURE = "40D308D7D2D214B247B6CF480E1FB85D"
-DATA_TIMESTAMP = 1773237062
-# ============================================
-
+  
 bot = Bot(token=TELEGRAM_BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
 dp = Dispatcher()
 
-# 💡 6Win 30 Seconds အတွက် သီးသန့် Database 
+# MongoDB Setup
 db_client = motor.motor_asyncio.AsyncIOMotorClient(MONGO_URI)
 db = db_client['bigwin_database'] 
-history_collection = db['6lottery_wingo30_history'] 
-predictions_collection = db['6lottery_wingo30_predictions'] 
+history_collection = db['game_history'] 
+predictions_collection = db['predictions'] 
 
+# ==========================================
+# 🔧 2. SYSTEM VARIABLES 
+# ==========================================
 CURRENT_TOKEN = ""
 LAST_PROCESSED_ISSUE = None
 MAIN_MESSAGE_ID = None 
 SESSION_START_ISSUE = None 
 LAST_CAPTION_EDIT_TIME = 0 
-LAST_HEARTBEAT = time.time()
 
 BASE_HEADERS = {
-    'authority': '6lotteryapi.com',
+    'authority': 'api.bigwinqaz.com',
     'accept': 'application/json, text/plain, */*',
     'content-type': 'application/json;charset=UTF-8',
-    'origin': 'https://www.6win566.com',
-    'referer': 'https://www.6win566.com/',
+    'origin': 'https://www.777bigwingame.app',
+    'referer': 'https://www.777bigwingame.app/',
     'user-agent': 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36',
 }
 
@@ -79,8 +74,11 @@ async def init_db():
         await predictions_collection.create_index("issue_number", unique=True)
         print("🗄 MongoDB ချိတ်ဆက်မှု အောင်မြင်ပါသည်။ (🚀 AI Analytics Dashboard Edition)")
     except Exception as e:
-        print(f"❌ MongoDB Error: {e}")
+        pass
 
+# ==========================================
+# 🔑 3. ASYNC API FUNCTIONS
+# ==========================================
 async def fetch_with_retry(session, url, headers, json_data, retries=3):
     for attempt in range(retries):
         try:
@@ -93,27 +91,27 @@ async def fetch_with_retry(session, url, headers, json_data, retries=3):
 async def login_and_get_token(session: aiohttp.ClientSession):
     global CURRENT_TOKEN
     json_data = {
-        'username': USERNAME, 
-        'pwd': PASSWORD,
+        'username': '959680090540',
+        'pwd': 'Mitheint11',
         'phonetype': 1,
         'logintype': 'mobile',
         'packId': '',
-        'deviceId': 'b9b753a9f874897574d7fa72ff84374c',
+        'deviceId': '51ed4ee0f338a1bb24063ffdfcd31ce6',
         'language': 7,
-        'random': DATA_RANDOM,
-        'signature': DATA_SIGNATURE,
-        'timestamp': DATA_TIMESTAMP,
+        'random': '452fa309995244de92103c0afbefbe9a',
+        'signature': '202C655177E9187D427A26F3CDC00A52',
+        'timestamp': 1773021618,
     }
-    data = await fetch_with_retry(session, 'https://6lotteryapi.com/api/webapi/Login', BASE_HEADERS, json_data)
+    data = await fetch_with_retry(session, 'https://api.bigwinqaz.com/api/webapi/Login', BASE_HEADERS, json_data)
     if data and data.get('code') == 0:
         token_str = data.get('data', {}) if isinstance(data.get('data'), str) else data.get('data', {}).get('token', '')
         CURRENT_TOKEN = f"Bearer {token_str}"
-        print("✅ 6WIN ဆာဗာသို့ Login အောင်မြင်ပါသည်။\n")
+        print("✅ Login အောင်မြင်ပါသည်။ Token အသစ် ရရှိပါပြီ。\n")
         return True
     return False
 
 # ==========================================
-# 🧠 THE ULTIMATE AI PREDICTION LOGIC
+# 🧠 4. THE ULTIMATE AI (Data Enrichment + Auto-Tuning + ML Ensemble + House Edge)
 # ==========================================
 def ultimate_ai_predict(history_docs, recent_preds):
     if len(history_docs) < 20: 
@@ -225,125 +223,133 @@ def ultimate_ai_predict(history_docs, recent_preds):
     return final_pred, final_prob, logic_used
 
 # ==========================================
-# 🎨 5. DYNAMIC GRAPH GENERATOR (AI ANALYTICS DASHBOARD)
+# 🎨 5. DYNAMIC GRAPH GENERATOR (AI PERFORMANCE ANALYTICS UI)
 # ==========================================
 def generate_winrate_chart(predictions):
     wins, losses = 0, 0
-    bar_colors, dots_list = [], []
-    bar_heights = [] # To simulate the performance trend waves
+    bar_colors, dots_list, bar_heights = [], [], []
     
     latest_preds = list(reversed(predictions))[-20:]
     
-    for p in latest_preds: 
+    for i, p in enumerate(latest_preds): 
+        # Calculate a simulated trend height based on rolling winrate
+        current_played = i + 1
         if 'WIN' in p.get('win_lose', ''):
             wins += 1
-            bar_colors.append('#00e5ff')  # Cyan/Green glow
-            dots_list.append(('G', '#22c55e'))
-            bar_heights.append(85) # High bar for WIN
+            bar_colors.append('#1de9b6')  # Cyan/Green glow
+            dots_list.append(('G', '#1de9b6'))
+            current_wr = (wins / current_played) * 100
+            bar_heights.append(50 + (current_wr / 2)) # High bars for WIN
         else:
             losses += 1
-            bar_colors.append('#ff4444')  # Red glow
-            dots_list.append(('R', '#ef4444'))
-            bar_heights.append(35) # Low bar for LOSS
+            bar_colors.append('#ef5350')  # Red glow
+            dots_list.append(('R', '#ef5350'))
+            current_wr = (wins / current_played) * 100
+            bar_heights.append(10 + (current_wr / 3)) # Low bars for LOSS
             
     total_played = wins + losses
     win_rate = int((wins / total_played * 100)) if total_played > 0 else 0
 
-    # 💡 10.24 inches x 100 DPI = 1024x768 pixels အတိအကျ
-    fig = plt.figure(figsize=(10.24, 7.68), facecolor='#16181c') 
+    # 💡 1024x768 Fixed Size with Sci-Fi Dark Background
+    fig = plt.figure(figsize=(10.24, 7.68), facecolor='#1c1f26') 
     
-    # --- TITLE ---
+    # --- 1. TITLE ---
     fig.text(0.05, 0.90, "AI PERFORMANCE ANALYTICS", color='#ffffff', fontsize=32, fontweight='bold', ha='left')
 
-    # --- 1. CIRCLE GAUGE (Left) ---
-    ax_circle = fig.add_axes([0.05, 0.45, 0.35, 0.40])
+    # --- 2. CIRCLE GAUGE (Left) ---
+    ax_circle = fig.add_axes([0.08, 0.42, 0.35, 0.40])
     ax_circle.set_axis_off()
     ax_circle.set_xlim(0, 1)
     ax_circle.set_ylim(0, 1)
     
-    # Background circle arc
-    theta_bg = np.linspace(0, 2*np.pi, 100)
-    ax_circle.plot(0.5 + 0.4*np.cos(theta_bg), 0.5 + 0.4*np.sin(theta_bg), color='#2a2d35', linewidth=10)
+    # Background arc
+    theta_bg = np.linspace(-1.25*np.pi, 0.25*np.pi, 200)
+    ax_circle.plot(0.5 + 0.45*np.cos(theta_bg), 0.5 + 0.45*np.sin(theta_bg), color='#2c313c', linewidth=12)
     
     # Progress arc (Cyan)
     if win_rate > 0:
-        theta_fg = np.linspace(np.pi/2, np.pi/2 - 2*np.pi*(win_rate/100), 100)
-        x_fg = 0.5 + 0.4 * np.cos(theta_fg)
-        y_fg = 0.5 + 0.4 * np.sin(theta_fg)
+        end_angle = 0.25*np.pi - (win_rate/100) * 1.5 * np.pi
+        theta_fg = np.linspace(0.25*np.pi, end_angle, 100)
+        # Main Line
+        ax_circle.plot(0.5 + 0.45*np.cos(theta_fg), 0.5 + 0.45*np.sin(theta_fg), color='#00e5ff', linewidth=12)
         # Glow Effect
-        for lw, alpha in zip([20, 12, 6], [0.2, 0.5, 1.0]):
-            ax_circle.plot(x_fg, y_fg, color='#00e5ff', linewidth=lw, alpha=alpha)
+        ax_circle.plot(0.5 + 0.45*np.cos(theta_fg), 0.5 + 0.45*np.sin(theta_fg), color='#00e5ff', linewidth=22, alpha=0.2)
             
     # Text inside circle
-    ax_circle.text(0.5, 0.70, f"{total_played}/20", color='#a0a0a0', fontsize=16, fontweight='bold', ha='center', va='center')
-    ax_circle.text(0.5, 0.60, "TOTAL WINRATE", color='#808080', fontsize=12, fontweight='bold', ha='center', va='center')
-    ax_circle.text(0.5, 0.45, f"{win_rate}%", color='#00e5ff', fontsize=55, fontweight='bold', ha='center', va='center')
-    ax_circle.text(0.5, 0.30, "PREDICTIONS MADE", color='#808080', fontsize=12, fontweight='bold', ha='center', va='center')
+    ax_circle.text(0.5, 0.75, f"{total_played}/20", color='#a3a8b5', fontsize=16, fontweight='bold', ha='center', va='center')
+    ax_circle.text(0.5, 0.65, "TOTAL WINRATE", color='#7a8294', fontsize=12, fontweight='bold', ha='center', va='center')
+    ax_circle.text(0.5, 0.48, f"{win_rate}%", color='#00e5ff', fontsize=65, fontweight='bold', ha='center', va='center')
+    ax_circle.text(0.5, 0.32, "PREDICTIONS MADE", color='#7a8294', fontsize=12, fontweight='bold', ha='center', va='center')
     
     # Finalised Badge
-    badge = patches.FancyBboxPatch((0.35, 0.15), 0.3, 0.08, boxstyle="round,pad=0.02", fc="#2a2d35", ec="#00e5ff", lw=1.5)
+    badge = patches.FancyBboxPatch((0.35, 0.16), 0.3, 0.08, boxstyle="round,pad=0.03", fc="#164e63", ec="#00e5ff", lw=1.5)
     ax_circle.add_patch(badge)
-    ax_circle.text(0.5, 0.19, "FINALISED ✓", color='#00e5ff', fontsize=11, fontweight='bold', ha='center', va='center')
-
-    # --- 2. BAR CHART (Right) ---
-    fig.text(0.75, 0.85, "SESSION PERFORMANCE TREND", color='#a0a0a0', fontsize=14, fontweight='bold', ha='center')
-    # Underline
-    fig.lines.extend([plt.Line2D([0.55, 0.95], [0.83, 0.83], color='#333333', lw=2, transform=fig.transFigure)])
+    ax_circle.text(0.5, 0.20, "FINALISED ✓", color='#00e5ff', fontsize=11, fontweight='bold', ha='center', va='center')
     
-    ax_bar = fig.add_axes([0.55, 0.45, 0.40, 0.35])
-    ax_bar.set_facecolor('#16181c')
+    ax_circle.text(0.05, 0.05, "0", color='#7a8294', fontsize=12, fontweight='bold', ha='center')
+    ax_circle.text(0.95, 0.05, "100%", color='#7a8294', fontsize=12, fontweight='bold', ha='center')
+
+    # --- 3. BAR CHART (Right) ---
+    fig.text(0.74, 0.85, "SESSION PERFORMANCE TREND", color='#a3a8b5', fontsize=14, fontweight='bold', ha='center')
+    fig.lines.extend([plt.Line2D([0.55, 0.93], [0.83, 0.83], color='#2c313c', lw=2, transform=fig.transFigure)])
+    fig.lines.extend([plt.Line2D([0.55, 0.93], [0.45, 0.45], color='#2c313c', lw=2, transform=fig.transFigure)])
+    
+    ax_bar = fig.add_axes([0.55, 0.47, 0.38, 0.33])
+    ax_bar.set_facecolor('#1c1f26')
     ax_bar.set_xlim(-0.5, 19.5)
     ax_bar.set_ylim(0, 100)
     
     ax_bar.spines['top'].set_visible(False)
     ax_bar.spines['right'].set_visible(False)
     ax_bar.spines['left'].set_visible(False)
-    ax_bar.spines['bottom'].set_color('#333333')
+    ax_bar.spines['bottom'].set_visible(False)
     
     ax_bar.set_yticks([25, 50, 75])
-    ax_bar.set_yticklabels(['', '', ''], color='#16181c') 
-    ax_bar.grid(axis='y', color='#333333', linestyle='-', linewidth=1.5)
+    ax_bar.set_yticklabels(['', '', '']) 
+    ax_bar.grid(axis='y', color='#2c313c', linestyle='-', linewidth=1.5)
     
     if total_played > 0:
         x_pos = np.arange(total_played)
         ax_bar.bar(x_pos, bar_heights, color=bar_colors, width=0.6, alpha=0.9, zorder=3)
         
     ax_bar.set_xticks(np.arange(20))
-    ax_bar.set_xticklabels([str(i+1) for i in range(20)], color='#808080', fontsize=10)
+    ax_bar.set_xticklabels([str(i+1) for i in range(20)], color='#7a8294', fontsize=10)
 
-    # --- 3. WINS & LOSSES BOXES ---
+    # --- 4. WINS & LOSSES BOXES ---
     # WIN Box (Cyan)
-    ax_win = fig.add_axes([0.05, 0.22, 0.40, 0.18])
+    ax_win = fig.add_axes([0.05, 0.22, 0.28, 0.16])
     ax_win.set_axis_off()
     ax_win.set_xlim(0, 1)
     ax_win.set_ylim(0, 1)
-    rect_win = patches.FancyBboxPatch((0, 0), 1, 1, boxstyle="round,pad=0,rounding_size=0.1", fc="#00e5ff", ec="none")
+    rect_win = patches.FancyBboxPatch((0, 0), 1, 1, boxstyle="round,pad=0,rounding_size=0.1", fc="#1de9b6", ec="none")
     ax_win.add_patch(rect_win)
-    ax_win.text(0.05, 0.75, "TOTAL WINS:", color='#004d40', fontsize=18, fontweight='bold', va='center')
-    ax_win.text(0.05, 0.35, f"{wins}", color='black', fontsize=45, fontweight='bold', va='center')
-    circ_win = plt.Circle((0.85, 0.5), 0.2, color='#00b3cc', ec='none')
+    ax_win.text(0.1, 0.75, "TOTAL WINS:", color='#004d40', fontsize=16, fontweight='bold', va='center')
+    ax_win.text(0.1, 0.35, f"{wins}", color='#000000', fontsize=48, fontweight='bold', va='center')
+    circ_win = plt.Circle((0.85, 0.5), 0.22, color='none', ec='#004d40', lw=3)
     ax_win.add_patch(circ_win)
-    ax_win.text(0.85, 0.5, "✓", color='white', fontsize=30, fontweight='bold', ha='center', va='center')
+    ax_win.text(0.85, 0.5, "✓", color='#004d40', fontsize=28, fontweight='bold', ha='center', va='center')
 
     # LOSE Box (Red)
-    ax_lose = fig.add_axes([0.48, 0.22, 0.40, 0.18])
+    ax_lose = fig.add_axes([0.35, 0.22, 0.28, 0.16])
     ax_lose.set_axis_off()
     ax_lose.set_xlim(0, 1)
     ax_lose.set_ylim(0, 1)
-    rect_lose = patches.FancyBboxPatch((0, 0), 1, 1, boxstyle="round,pad=0,rounding_size=0.1", fc="#ff4444", ec="none")
+    rect_lose = patches.FancyBboxPatch((0, 0), 1, 1, boxstyle="round,pad=0,rounding_size=0.1", fc="#ef5350", ec="none")
     ax_lose.add_patch(rect_lose)
-    ax_lose.text(0.05, 0.75, "TOTAL LOSSES:", color='#4d0000', fontsize=18, fontweight='bold', va='center')
-    ax_lose.text(0.05, 0.35, f"{losses}", color='white', fontsize=45, fontweight='bold', va='center')
-    circ_lose = plt.Circle((0.85, 0.5), 0.2, color='#cc0000', ec='none')
-    ax_lose.add_patch(circ_lose)
-    ax_lose.text(0.85, 0.5, "X", color='white', fontsize=26, fontweight='bold', ha='center', va='center')
+    ax_lose.text(0.1, 0.75, "TOTAL LOSSES:", color='#4d0000', fontsize=16, fontweight='bold', va='center')
+    ax_lose.text(0.1, 0.35, f"{losses}", color='#ffffff', fontsize=48, fontweight='bold', va='center')
+    shield = patches.RegularPolygon((0.85, 0.5), numVertices=6, radius=0.25, orientation=np.pi/6, color='none', ec='#4d0000', lw=3)
+    ax_lose.add_patch(shield)
 
-    # --- Watermark ---
-    fig.text(0.95, 0.28, "DEV - WANG LIN", color='#ffffff', fontsize=26, fontweight='bold', ha='right', style='italic')
-    fig.lines.extend([plt.Line2D([0.65, 0.95], [0.25, 0.25], color='#333333', lw=2, transform=fig.transFigure)])
+    # --- 5. WATERMARK ---
+    ax_wm = fig.add_axes([0.65, 0.22, 0.30, 0.16])
+    ax_wm.set_axis_off()
+    ax_wm.text(0.5, 0.5, "DEV - WANG LIN", color='#ffffff', fontsize=26, fontweight='bold', style='italic', ha='center', va='center')
+    ax_wm.plot([0.1, 0.9], [0.30, 0.30], color='#ffffff', lw=3)
+    ax_wm.plot([0.1, 0.9], [0.70, 0.70], color='#ffffff', lw=3)
 
-    # --- 4. TIMELINE (Dots) ---
-    fig.text(0.05, 0.15, "FULL PREDICTION TIMELINE (Oldest to Latest)", color='#a0a0a0', fontsize=12, fontweight='bold', ha='left')
+    # --- 6. TIMELINE (Dots) ---
+    fig.text(0.05, 0.16, "FULL PREDICTION TIMELINE (Oldest to Latest)", color='#a3a8b5', fontsize=12, fontweight='bold', ha='left')
     
     ax_time = fig.add_axes([0.05, 0.05, 0.9, 0.08])
     ax_time.set_axis_off()
@@ -352,14 +358,12 @@ def generate_winrate_chart(predictions):
     
     if len(dots_list) > 0:
         for i, (char, color) in enumerate(dots_list):
-            # အလုံးလေးတွေ ဆွဲပေးခြင်း
             ax_time.scatter(i, 0.5, s=600, c=color, edgecolors='none', zorder=5)
-            # အလုံးထဲက G / R စာလုံး
-            ax_time.text(i, 0.5, char, color='white', fontsize=14, fontweight='bold', ha='center', va='center', zorder=6)
-            
+            ax_time.text(i, 0.5, char, color='#ffffff', fontsize=14, fontweight='bold', ha='center', va='center', zorder=6)
+
+    # 💡 ဖြတ်ချခြင်းမပြုဘဲ 1024x768 အတိအကျထုတ်ယူသည်
     buf = io.BytesIO()
-    # 💡 [အရေးကြီး] Resolution ကို 1024x768 အတိအကျဖြစ်ရန် bbox_inches မသုံးထားပါ
-    plt.savefig(buf, format='png', dpi=100, facecolor='#16181c') 
+    plt.savefig(buf, format='png', dpi=100, facecolor='#1c1f26') 
     buf.seek(0)
     plt.close(fig)
     return buf
@@ -378,12 +382,10 @@ async def check_game_and_predict(session: aiohttp.ClientSession):
 
     json_data = {
         'pageSize': 10, 'pageNo': 1, 'typeId': 30, 'language': 7,
-        'random': DATA_RANDOM,
-        'signature': DATA_SIGNATURE,
-        'timestamp': DATA_TIMESTAMP,
+        'random': '1ef0a7aca52b4c71975c031dda95150e', 'signature': '7D26EE375971781D1BC58B7039B409B7', 'timestamp': 1772985040,
     }
 
-    data = await fetch_with_retry(session, 'https://6lotteryapi.com/api/webapi/GetNoaverageEmerdList', headers, json_data)
+    data = await fetch_with_retry(session, 'https://api.bigwinqaz.com/api/webapi/GetNoaverageEmerdList', headers, json_data)
     if not data or data.get('code') != 0:
         if data and (data.get('code') == 401 or "token" in str(data.get('msg')).lower()): CURRENT_TOKEN = ""
         return
@@ -455,13 +457,14 @@ async def check_game_and_predict(session: aiohttp.ClientSession):
     try:
         mem_pred, mem_prob, mem_logic = await asyncio.to_thread(ultimate_ai_predict, history_docs, recent_preds)
         predicted = "BIG (အကြီး) 🔴" if mem_pred == "BIG" else "SMALL (အသေး) 🟢"
+        base_prob = mem_prob
         reason = f"🧠 <b>Ultimate AI Engine</b>\n{mem_logic}"
     except Exception as e:
         predicted = "BIG (အကြီး) 🔴"
-        mem_prob = 55.0
-        reason = f"⚠️ AI Processing Error"
+        base_prob = 55.0
+        reason = "⚠️ AI Engine Error"
     
-    final_prob = min(max(round(mem_prob, 1), 60.0), 98.0)
+    final_prob = min(max(round(base_prob, 1), 60.0), 98.0)
     predicted_result_db = "BIG" if "BIG" in predicted else "SMALL"
     
     await predictions_collection.update_one(
@@ -500,13 +503,13 @@ async def check_game_and_predict(session: aiohttp.ClientSession):
         sec_left = 30 - (int(time.time()) % 30)
         if sec_left == 30: sec_left = 0 
         return (
-            f"<b>🏆 6WIN GO (30 SECONDS)</b>\n"
+            f"<b>🏆 WIN GO (30 SECONDS)</b>\n"
             f"⏰ Next Result In: <b>{sec_left}s</b>\n\n"
             f"{table_str}\n"
             f"🅿️ <b>Period:</b> {next_issue[:3]}**{next_issue[-4:]}\n"
             f"🎯 <b>Predict: {predicted}</b>\n"
             f"📈 <b>ဖြစ်နိုင်ခြေ:</b> {final_prob}%\n"
-            f"💡 <b>သုံးသပ်ချက်:</b>\n"
+            f"💡 <b>အကြောင်းပြချက်:</b>\n"
             f"{reason}\n"
             f"━━━━━━━━━━━━━━━━━━\n"
             f"{bet_advice}"
@@ -540,10 +543,8 @@ async def check_game_and_predict(session: aiohttp.ClientSession):
     except TelegramRetryAfter as e:
         LAST_CAPTION_EDIT_TIME = time.time() + e.retry_after
     except TelegramBadRequest as e:
-        if "message is not modified" in str(e):
-            pass 
-        elif "message to edit not found" in str(e):
-            MAIN_MESSAGE_ID = None 
+        if "message is not modified" in str(e): pass 
+        elif "message to edit not found" in str(e): MAIN_MESSAGE_ID = None 
 
 async def auto_broadcaster():
     await init_db() 
@@ -555,7 +556,7 @@ async def auto_broadcaster():
 
 @dp.message(Command("start"))
 async def send_welcome(message: types.Message):
-    await message.reply("👋 မင်္ဂလာပါ။ 6WIN AI Analytics Dashboard အသင့်ဖြစ်နေပါပြီ။")
+    await message.reply("👋 မင်္ဂလာပါ။ စနစ်က Zero-Latency Timer ဖြင့် လုံးဝတိကျစွာ အလုပ်လုပ်နေပါပြီ။")
 
 async def main():
     print("🚀 Aiogram Bigwin Bot (AI Analytics Dashboard Edition) စတင်နေပါပြီ...\n")
