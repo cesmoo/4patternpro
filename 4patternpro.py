@@ -45,7 +45,7 @@ dp = Dispatcher()
 
 # MongoDB Setup
 db_client = motor.motor_asyncio.AsyncIOMotorClient(MONGO_URI)
-db = db_client['bigwin_database'] 
+db = db_client['bigwin4pattern_database'] 
 history_collection = db['game_history'] 
 predictions_collection = db['predictions'] 
 
