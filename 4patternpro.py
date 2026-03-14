@@ -156,8 +156,8 @@ def dynamic_history_predict(history_docs):
             total_pattern_matches = big_next_count + small_next_count
             
             if total_pattern_matches > 0:
-                big_prob = (big_next_count / total_pattern_matches) * 100
-                small_prob = (small_next_count / total_pattern_matches) * 100
+                big_prob = (big_next_count / total_pattern_matches) * 1000
+                small_prob = (small_next_count / total_pattern_matches) * 1000
                 pattern_str = "-".join(recent_pattern).replace('BIG', 'B').replace('SMALL', 'S')
                 
                 if big_prob > small_prob:
@@ -393,7 +393,7 @@ async def check_game_and_predict(session: aiohttp.ClientSession):
                 "win_lose": {"$ne": None}
             })
             
-            if current_session_count >= 500: 
+            if current_session_count >= 21: 
                 SESSION_START_ISSUE = next_issue
             
             recent_preds_cursor = predictions_collection.find({"win_lose": {"$ne": None}}).sort("issue_number", -1).limit(10)
