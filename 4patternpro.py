@@ -136,9 +136,9 @@ def dynamic_history_predict(history_docs):
     base_prob = 55.0
     reason = "Pattern အသစ်ဖြစ်နေသဖြင့် သမိုင်းကြောင်းအရ တွက်ချက်ထားသည်"
     
-    MAX_PATTERN_LENGTH = 4
-    MIN_PATTERN_LENGTH = 4  # ၄ လုံးတွဲ မတွေ့ရင် ၃ လုံး၊ ၃ လုံးမတွေ့ရင် ၂ လုံးအထိ ဆင်းရှာမည်
-    pattern_found = False
+    MAX_PATTERN_LENGTH = 6
+    MIN_PATTERN_LENGTH = 6  # ၄ လုံးတွဲ မတွေ့ရင် ၃ လုံး၊ ၃ လုံးမတွေ့ရင် ၂ လုံးအထိ ဆင်းရှာမည်
+    pattern_found = True
     
     for current_len in range(MAX_PATTERN_LENGTH, MIN_PATTERN_LENGTH - 1, -1):
         if len(all_history) > current_len:
@@ -393,7 +393,7 @@ async def check_game_and_predict(session: aiohttp.ClientSession):
                 "win_lose": {"$ne": None}
             })
             
-            if current_session_count >= 20: 
+            if current_session_count >= 500: 
                 SESSION_START_ISSUE = next_issue
             
             recent_preds_cursor = predictions_collection.find({"win_lose": {"$ne": None}}).sort("issue_number", -1).limit(10)
