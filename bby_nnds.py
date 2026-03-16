@@ -522,8 +522,8 @@ class ApplicationController:
         """ ဆာဗာမှ ပွဲစဉ်ရလဒ်များကို လှမ်းတောင်းသည် (Retry စနစ်ပါဝင်သည်) """
         json_data = {
             'pageSize': 10, 'pageNo': 1, 'typeId': 30, 'language': 7, 
-            'random': '029ef9cb888540c4b19e0c4b5eb49cbf', 
-            'signature': 'C526273C4CCB81BBD1A1227C3DC5D025', 
+            'random': '9ef85244056948ba8dcae7aee7758bf4', 
+            'signature': '2EDB8C2B5264F62EC53116916A9EC05C', 
             'timestamp': int(time.time())
         }
         for attempt in range(3):
