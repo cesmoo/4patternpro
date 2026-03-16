@@ -70,18 +70,18 @@ class Config:
     MULTIPLIERS: List[int] = [1, 2, 3, 5, 8, 15, 30, 50, 100]
     
     # API Configuration (Regular Win Go)
-    API_URL: str = 'https://6lotteryapi.com/api/webapi/GetNoaverageEmerdList'
+    API_URL: str = 'https://api.bigwinqaz.com/api/webapi/GetNoaverageEmerdList'
     
     @staticmethod
     def get_headers() -> Dict[str, str]:
         """ API Request အတွက် Headers များကို ထုတ်ပေးသည် """
         return {
-            'authority': '6lotteryapi.com', 
+            'authority': 'api.bigwinqaz.com', 
             'accept': 'application/json, text/plain, */*',
             # 💡 သတိပြုရန်: ဤနေရာတွင် Token အသစ်ကို အစားထိုးပါ
             #'authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpYXQiOiIxNzczNjMxOTU4IiwibmJmIjoiMTc3MzYzMTk1OCIsImV4cCI6IjE3NzM2MzM3NTgiLCJodHRwOi8vc2NoZW1hcy5taWNyb3NvZnQuY29tL3dzLzIwMDgvMDYvaWRlbnRpdHkvY2xhaW1zL2V4cGlyYXRpb24iOiIzLzE2LzIwMjYgMTA6MzI6MzggQU0iLCJodHRwOi8vc2NoZW1hcy5taWNyb3NvZnQuY29tL3dzLzIwMDgvMDYvaWRlbnRpdHkvY2xhaW1zL3JvbGUiOiJBY2Nlc3NfVG9rZW4iLCJVc2VySWQiOiIxMDc2NTk0IiwiVXNlck5hbWUiOiI5NTk2NzUzMjM4NzgiLCJVc2VyUGhvdG8iOiI3IiwiTmlja05hbWUiOiLhgJXhgLzhgIrhgLfhgLrhgIXhgK_hgLYiLCJBbW91bnQiOiI5NS41NSIsIkludGVncmFsIjoiMCIsIkxvZ2luTWFyayI6Ikg1IiwiTG9naW5UaW1lIjoiMy8xNi8yMDI2IDEwOjAyOjM4IEFNIiwiTG9naW5JUEFkZHJlc3MiOiIxMDMuMTM0LjIwNy4xNTIiLCJEYk51bWJlciI6IjAiLCJJc3ZhbGlkYXRvciI6IjAiLCJLZXlDb2RlIjoiMTA2IiwiVG9rZW5UeXBlIjoiQWNjZXNzX1Rva2VuIiwiUGhvbmVUeXBlIjoiMSIsIlVzZXJUeXBlIjoiMCIsIlVzZXJOYW1lMiI6IiIsImlzcyI6Imp3dElzc3VlciIsImF1ZCI6ImxvdHRlcnlUaWNrZXQifQ.ODo3Y-5b0iaBUF8O05E1eOsxWj8WpKgIqETu0LeEWR8',
             'content-type': 'application/json;charset=UTF-8', 
-            'origin': 'https://www.6win566.com',
+            'origin': 'https://www.777bigwingame.app',
             'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
         }
 
