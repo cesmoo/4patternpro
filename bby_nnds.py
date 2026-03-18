@@ -301,8 +301,8 @@ class RiskManager:
         confidence = max(final_prob, 1 - final_prob) * 100
         
         # ⚠️ အဓိက Risk Layer: ယုံကြည်မှု 53% အောက်ဆိုလျှင် မဆော့ဘဲ ကျော်မည်
-        if confidence < 53.0:
-            return "SKIP", 0 
+        #if confidence < 53.0:
+           # return "SKIP", 0 
         
         pred_size = "BIG" if final_prob > 0.5 else "SMALL"
         # Streak ကြီးလာလျှင် Stop Loss အနေဖြင့် 1 သို့ ပြန်ချမည်
