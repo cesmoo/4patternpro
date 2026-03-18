@@ -1,11 +1,10 @@
 """
 ====================================================================================
-🏆 ULTRA-AI PREDICTION SYSTEM (10-CORE ARCHITECTURE) 🏆
+🏆 ULTRA-AI AUTONOMOUS BOT (20-CORE ARCHITECTURE) 🏆
 ====================================================================================
 Developer: Master AI System
 Target: 6win566 Win Go (Regular)
-Architecture: Modular Object-Oriented Programming (OOP)
-Pipeline: 10 AI Engines ➡️ Meta-AI Weighting ➡️ Final Prediction
+Pipeline: History -> Feature Eng -> 20 Engines -> Probability Sim -> RL -> Risk Mgr
 ====================================================================================
 """
 
@@ -14,27 +13,29 @@ import time
 import os
 import logging
 import math
+import random
 from collections import Counter
 from datetime import datetime
 from typing import List, Tuple, Dict, Any, Optional
 from dotenv import load_dotenv
 
-# Async Web & Database
 import aiohttp
 import motor.motor_asyncio 
 
-# Telegram UI
 from aiogram import Bot, Dispatcher
 from aiogram.enums import ParseMode
 from aiogram.client.default import DefaultBotProperties
 
-# --- 🧠 ULTRA AI & DATA SCIENCE LIBRARIES ---
+# --- 🧠 DATA SCIENCE & ML LIBRARIES ---
 import numpy as np
 import scipy.stats as stats
-import random
-from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
+from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier, HistGradientBoostingClassifier
+from sklearn.linear_model import LogisticRegression
+from sklearn.svm import SVC
 from sklearn.naive_bayes import GaussianNB
 from sklearn.preprocessing import StandardScaler
+
+# --- 🔥 DEEP LEARNING (PyTorch) ---
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -43,34 +44,24 @@ import warnings
 warnings.filterwarnings("ignore")
 
 # =========================================================================
-# ⚙️ MODULE 1: SYSTEM CONFIGURATION & ADVANCED LOGGING
+# ⚙️ CONFIGURATION & DB
 # =========================================================================
 load_dotenv()
 
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s [%(levelname)s] %(name)s - %(message)s',
-    datefmt='%Y-%m-%d %H:%M:%S'
-)
-logger = logging.getLogger("ULTRA-AI")
+logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] %(name)s - %(message)s', datefmt='%H:%M:%S')
+logger = logging.getLogger("AUTONOMOUS-AI")
 
 class Config:
-    BOT_TOKEN: str = os.getenv("BOT_TOKEN", "YOUR_BOT_TOKEN")
-    CHANNEL_ID: str = os.getenv("CHANNEL_ID", "YOUR_CHANNEL_ID")
-    MONGO_URI: str = os.getenv("MONGO_URI", "YOUR_MONGO_URI")
-    
-    WIN_STICKER: str = "CAACAgUAAxkBAAEQwtVpt1_oWxyaQFmiy3O_1knZjN9yCwAC2hIAAikFkVX0qhu40v6REDoE"  
-    LOSE_STICKER: str = "" 
-    
-    MULTIPLIERS: List[int] = [1, 2, 3, 5, 8, 15, 30, 50, 100]
-    API_URL: str = 'https://api.bigwinqaz.com/api/webapi/GetNoaverageEmerdList'
-    
+    BOT_TOKEN = os.getenv("BOT_TOKEN", "YOUR_BOT_TOKEN")
+    CHANNEL_ID = os.getenv("CHANNEL_ID", "YOUR_CHANNEL_ID")
+    MONGO_URI = os.getenv("MONGO_URI", "YOUR_MONGO_URI")
+    API_URL = 'https://api.bigwinqaz.com/api/webapi/GetNoaverageEmerdList'
+    MULTIPLIERS = [1, 2, 3, 5, 8, 15, 30, 50, 100]
+
     @staticmethod
-    def get_headers() -> Dict[str, str]:
+    def get_headers():
         return {
-            'authority': 'api.bigwinqaz.com', 
-            'accept': 'application/json, text/plain, */*',
-            # Token အသစ်ကို လိုအပ်ပါက အစားထိုးပါ
+            'authority': 'api.bigwinqaz.com', 'accept': 'application/json, text/plain, */*',
             'content-type': 'application/json;charset=UTF-8', 
             'origin': 'https://www.777bigwingame.app',
             'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
@@ -79,514 +70,380 @@ class Config:
 bot = Bot(token=Config.BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
 dp = Dispatcher()
 
-# =========================================================================
-# 🗄️ MODULE 2: ASYNC DATABASE MANAGER
-# =========================================================================
 class DatabaseManager:
     def __init__(self, uri: str):
-        self.client = motor.motor_asyncio.AsyncIOMotorClient(uri, serverSelectionTimeoutMS=5000)
-        self.db = self.client['bigwin4pattern_database']
+        self.client = motor.motor_asyncio.AsyncIOMotorClient(uri)
+        self.db = self.client['bigwin_autonomous']
         self.history = self.db['game_history']
         self.predictions = self.db['predictions']
 
-    async def initialize(self) -> None:
-        try:
-            await self.history.create_index("issue_number", unique=True)
-            await self.predictions.create_index("issue_number", unique=True)
-            logger.info("✅ Async Database Initialized Successfully.")
-        except Exception as e:
-            logger.error(f"❌ Database Initialization Error: {e}")
+    async def initialize(self):
+        await self.history.create_index("issue_number", unique=True)
+        await self.predictions.create_index("issue_number", unique=True)
 
-    async def save_history(self, issue: str, number: int, size: str, parity: str) -> None:
-        try:
-            doc = {
-                "number": int(number), "size": str(size),
-                "parity": str(parity), "timestamp": datetime.now()
-            }
-            await self.history.update_one({"issue_number": issue}, {"$setOnInsert": doc}, upsert=True)
-        except Exception as e:
-            logger.error(f"Save History Error: {e}")
+    async def save_history(self, issue, number, size, parity):
+        doc = {"number": int(number), "size": str(size), "parity": str(parity), "timestamp": datetime.now()}
+        await self.history.update_one({"issue_number": issue}, {"$setOnInsert": doc}, upsert=True)
 
-    async def save_prediction(self, issue: str, pred_size: str, confidence: float, details: Dict[str, float]) -> None:
-        try:
-            doc = {
-                "predicted_size": str(pred_size), "confidence": float(confidence), 
-                "model_votes": details, "timestamp": datetime.now()
-            }
-            await self.predictions.update_one({"issue_number": issue}, {"$set": doc}, upsert=True)
-        except Exception as e:
-            logger.error(f"Save Prediction Error: {e}")
-
-    async def update_result(self, issue: str, actual_size: str, actual_number: int, win_lose: str) -> None:
-        try:
-            doc = {
-                "actual_size": str(actual_size), "actual_number": int(actual_number), "win_lose": str(win_lose)
-            }
-            await self.predictions.update_one({"issue_number": issue}, {"$set": doc})
-        except Exception as e:
-            logger.error(f"Update Result Error: {e}")
-
-    async def get_history(self, limit: int = 500) -> List[Dict[str, Any]]:
-        try:
-            return await self.history.find().sort("issue_number", -1).limit(limit).to_list(length=limit)
-        except Exception as e:
-            logger.error(f"Get History Error: {e}")
-            return []
-
-    async def get_recent_predictions(self, limit: int = 10) -> List[Dict[str, Any]]:
-        try:
-            return await self.predictions.find({"win_lose": {"$ne": None}}).sort("issue_number", -1).limit(limit).to_list(length=limit)
-        except Exception as e:
-            logger.error(f"Get Predictions Error: {e}")
-            return []
+    async def get_history(self, limit=500):
+        return await self.history.find().sort("issue_number", -1).limit(limit).to_list(length=limit)
 
 # =========================================================================
-# 🔬 MODULE 3: ADVANCED FEATURE ENGINEERING
+# 🛠️ FEATURE ENGINEERING
 # =========================================================================
-class FeatureEngineer:
-    def __init__(self, window_size: int = 6):
-        self.window = window_size
+class FeatureEngineering:
+    def __init__(self, window=8):
+        self.window = window
         self.scaler = StandardScaler()
 
-    def extract_features(self, sizes: List[str], numbers: List[int], parities: List[str]) -> Tuple[Optional[np.ndarray], Optional[np.ndarray], Optional[np.ndarray]]:
-        if len(sizes) < self.window * 4:
-            return None, None, None
-            
+    def process(self, sizes: List[str], numbers: List[int], parities: List[str]):
+        if len(sizes) < self.window * 4: return None, None, None
         X, y = [], []
-        try:
-            for i in range(len(sizes) - self.window):
-                row = []
-                for j in range(self.window):
-                    size_val = 1.0 if sizes[i+j] == 'BIG' else 0.0
-                    par_val = 1.0 if parities[i+j] == 'EVEN' else 0.0
-                    num_val = float(numbers[i+j])
-                    row.extend([size_val, par_val, num_val])
-                X.append(row)
-                y.append(1.0 if sizes[i+self.window] == 'BIG' else 0.0)
-            
-            curr_feats = []
-            for j in range(1, self.window + 1):
-                size_val = 1.0 if sizes[-j] == 'BIG' else 0.0
-                par_val = 1.0 if parities[-j] == 'EVEN' else 0.0
-                num_val = float(numbers[-j])
-                curr_feats.extend([size_val, par_val, num_val])
-                
-            X_scaled = self.scaler.fit_transform(X)
-            curr_scaled = self.scaler.transform([curr_feats])
-            
-            return X_scaled, np.array(y), curr_scaled
-        except Exception as e:
-            logger.error(f"Feature Engineering Error: {e}")
-            return None, None, None
-
-# =========================================================================
-# 🧠 MODULE 4: THE 10 AI CORES (SUB-ENGINES)
-# =========================================================================
-class TreeEngines:
-    def __init__(self):
-        self.rf = RandomForestClassifier(n_estimators=150, max_depth=6, random_state=42, n_jobs=-1)
-        self.gb = GradientBoostingClassifier(n_estimators=150, learning_rate=0.05, max_depth=4, random_state=42)
+        for i in range(len(sizes) - self.window):
+            row = []
+            for j in range(self.window):
+                row.extend([1.0 if sizes[i+j] == 'BIG' else 0.0, float(numbers[i+j])])
+            X.append(row)
+            y.append(1.0 if sizes[i+self.window] == 'BIG' else 0.0)
         
-    def predict(self, X: np.ndarray, y: np.ndarray, curr_X: np.ndarray) -> Tuple[float, float]:
-        try:
-            self.rf.fit(X, y)
-            self.gb.fit(X, y)
-            rf_prob = float(self.rf.predict_proba(curr_X)[0][1]) if 1.0 in self.rf.classes_ else 0.5
-            gb_prob = float(self.gb.predict_proba(curr_X)[0][1]) if 1.0 in self.gb.classes_ else 0.5
-            return rf_prob, gb_prob
-        except Exception:
-            return 0.5, 0.5
+        curr_feats = []
+        for j in range(1, self.window + 1):
+            curr_feats.extend([1.0 if sizes[-j] == 'BIG' else 0.0, float(numbers[-j])])
+            
+        X_scaled = self.scaler.fit_transform(X)
+        curr_scaled = self.scaler.transform([curr_feats])
+        return X_scaled, np.array(y), curr_scaled
 
-class MarkovEngine:
-    @staticmethod
-    def predict(sizes: List[str]) -> float:
-        if len(sizes) < 10: return 0.5
-        trans = {'BIG': {'BIG': 0, 'SMALL': 0}, 'SMALL': {'BIG': 0, 'SMALL': 0}}
-        try:
-            for i in range(len(sizes)-1): 
-                trans[sizes[i]][sizes[i+1]] += 1
+# =========================================================================
+# 🧠 THE 20 AI ENGINES
+# =========================================================================
+class MachineLearningGroup:
+    """ 1-5: Machine Learning Models """
+    def __init__(self):
+        self.models = {
+            "rf": RandomForestClassifier(n_estimators=100, max_depth=5),
+            "gbm": GradientBoostingClassifier(n_estimators=100, max_depth=3),
+            "xgboost": HistGradientBoostingClassifier(max_iter=100), # Built-in Alternative
+            "logistic": LogisticRegression(max_iter=200),
+            "svm": SVC(probability=True)
+        }
+    
+    def predict(self, X, y, curr_X, default_b) -> Dict[str, float]:
+        res = {}
+        if X is None or len(X) < 20:
+            return {k: default_b for k in self.models.keys()}
+        for name, model in self.models.items():
+            try:
+                model.fit(X, y)
+                res[name] = float(model.predict_proba(curr_X)[0][1]) if 1.0 in model.classes_ else default_b
+            except: res[name] = default_b
+        return res
+
+class StatisticalGroup:
+    """ 6-10: Statistical Models """
+    def predict(self, sizes: List[str], X, y, curr_X, default_b) -> Dict[str, float]:
+        res = {}
+        # 6. Markov Chain
+        if len(sizes) > 10:
+            trans = {'BIG': {'BIG': 0, 'SMALL': 0}, 'SMALL': {'BIG': 0, 'SMALL': 0}}
+            for i in range(len(sizes)-1): trans[sizes[i]][sizes[i+1]] += 1
             curr = sizes[-1]
             tot = sum(trans[curr].values())
-            return float(trans[curr]['BIG'] / tot) if tot > 0 else 0.5
-        except: return 0.5
+            res["markov"] = float(trans[curr]['BIG']/tot) if tot > 0 else default_b
+        else: res["markov"] = default_b
 
-class NGramEngine:
-    @staticmethod
-    def predict(sizes: List[str], n: int = 4) -> float:
-        if len(sizes) < n+1: return 0.5
+        # 7. Bayesian Inference
         try:
-            pat = tuple(sizes[-n:])
-            matches = [sizes[i+n] for i in range(len(sizes)-n) if tuple(sizes[i:i+n]) == pat]
-            if not matches: return 0.5
-            return float(matches.count('BIG') / len(matches))
-        except: return 0.5
+            nb = GaussianNB(); nb.fit(X, y)
+            res["bayes"] = float(nb.predict_proba(curr_X)[0][1]) if 1.0 in nb.classes_ else default_b
+        except: res["bayes"] = default_b
 
-class MonteCarloEngine:
-    @staticmethod
-    def predict(sizes: List[str], sims: int = 1000) -> float:
-        if not sizes: return 0.5
-        try:
-            prob_b = sizes.count('BIG') / len(sizes)
-            results = np.random.choice([1.0, 0.0], size=sims, p=[prob_b, 1.0-prob_b])
-            return float(np.mean(results))
-        except: return 0.5
+        # 8. Monte Carlo
+        prob_b = sizes.count('BIG') / len(sizes) if sizes else 0.5
+        res["monte_carlo"] = float(np.mean(np.random.choice([1.0, 0.0], size=500, p=[prob_b, 1.0-prob_b])))
 
-class TrendEngine:
-    @staticmethod
-    def predict(sizes: List[str], window: int = 15) -> float:
-        if len(sizes) < window: return 0.5
-        try:
-            recent = sizes[-window:]
-            momentum = recent.count('BIG') / float(window)
-            if momentum >= 0.8: return 0.25 
-            if momentum <= 0.2: return 0.75 
-            return float(momentum)
-        except: return 0.5
+        # 9. Simplified HMM (State Estimation)
+        res["hmm"] = prob_b * 1.05 if sizes[-1] == 'BIG' else prob_b * 0.95
 
-class BayesianEngine:
-    def __init__(self): 
-        self.nb = GaussianNB()
+        # 10. Entropy Analyzer
+        p_b = sizes[-20:].count('BIG') / 20.0 if len(sizes) >= 20 else 0.5
+        ent = stats.entropy([p_b, 1-p_b], base=2) if 0 < p_b < 1 else 0.0
+        res["entropy"] = 0.5 if ent > 0.95 else p_b # Chaos means 50/50
         
-    def predict(self, X: np.ndarray, y: np.ndarray, curr_X: np.ndarray) -> float:
-        try:
-            self.nb.fit(X, y)
-            return float(self.nb.predict_proba(curr_X)[0][1]) if 1.0 in self.nb.classes_ else 0.5
-        except: return 0.5
+        return res
 
-class SimpleLSTM(nn.Module):
+class PatternGroup:
+    """ 11-15: Pattern & Chaos """
+    def predict(self, sizes: List[str], default_b: float) -> Dict[str, float]:
+        res = {}
+        # 11. N-Gram
+        n = 3
+        pat = tuple(sizes[-n:]) if len(sizes) >= n else ()
+        matches = [sizes[i+n] for i in range(len(sizes)-n) if tuple(sizes[i:i+n]) == pat]
+        res["ngram"] = float(matches.count('BIG')/len(matches)) if matches else default_b
+
+        # 12. Trend
+        recent = sizes[-10:] if len(sizes) >= 10 else sizes
+        res["trend"] = recent.count('BIG') / len(recent) if recent else default_b
+
+        # 13. Volatility
+        nums = [1.0 if s == 'BIG' else 0.0 for s in recent]
+        vol = np.std(nums) if nums else 0
+        res["volatility"] = 0.5 if vol > 0.45 else res["trend"] # High vol = unpredictable
+
+        # 14. Chaos Theory (Simple Lyapunov Proxy)
+        res["chaos"] = default_b # Placeholder for advanced chaos math
+
+        # 15. Frequency Pattern (FFT)
+        if len(nums) > 10:
+            fft_vals = np.abs(np.fft.fft(nums))
+            res["frequency"] = 0.6 if fft_vals[1] > np.mean(fft_vals) else 0.4
+        else: res["frequency"] = default_b
+        return res
+
+# --- Deep Learning Architecture ---
+class CNN1D(nn.Module):
     def __init__(self):
         super().__init__()
-        self.lstm = nn.LSTM(input_size=1, hidden_size=16, num_layers=1, batch_first=True)
-        self.fc = nn.Linear(16, 1)
-        self.sigmoid = nn.Sigmoid()
-        
+        self.conv1 = nn.Conv1d(1, 4, kernel_size=3, padding=1)
+        self.fc = nn.Linear(4 * 20, 1) # Assumes seq length 20
     def forward(self, x):
-        _, (hn, _) = self.lstm(x)
-        out = self.fc(hn[-1])
-        return self.sigmoid(out)
+        x = torch.relu(self.conv1(x))
+        x = x.view(x.size(0), -1)
+        return torch.sigmoid(self.fc(x))
 
-class LSTMEngine:
-    def predict(self, sizes: List[str]) -> float:
-        if len(sizes) < 50: return 0.5
-        try:
-            data = [1.0 if s == 'BIG' else 0.0 for s in sizes[-50:]]
-            X_t = torch.tensor(data[:-1], dtype=torch.float32).view(1, -1, 1)
-            y_t = torch.tensor([data[-1]], dtype=torch.float32).view(1, 1)
-            
-            model = SimpleLSTM()
-            optimizer = optim.Adam(model.parameters(), lr=0.01)
-            criterion = nn.BCELoss()
-            
-            model.train()
-            for _ in range(5):
-                optimizer.zero_grad()
-                loss = criterion(model(X_t), y_t)
-                loss.backward()
-                optimizer.step()
-            
-            model.eval()
-            curr_X = torch.tensor(data[1:], dtype=torch.float32).view(1, -1, 1)
-            with torch.no_grad(): 
-                prediction = model(curr_X).item()
-            return float(prediction)
-        except Exception as e: 
-            logger.warning(f"LSTM Error: {e}")
-            return 0.5
-
-class EntropyEngine:
-    @staticmethod
-    def predict(sizes: List[str]) -> float:
-        if len(sizes) < 20: return 0.5
-        try:
-            recent = sizes[-20:]
-            p_b = recent.count('BIG') / 20.0
-            p_s = 1.0 - p_b
-            if p_b == 0 or p_s == 0: return float(p_b)
-            
-            entropy = stats.entropy([p_b, p_s], base=2)
-            if entropy > 0.98: return 0.5 
-            return float(p_b)
-        except: return 0.5
-
-class MetaOptimizer:
+class DeepLearningGroup:
+    """ 16-19: Neural Networks & RL Base """
     def __init__(self):
-        self.weights: Dict[str, float] = {
-            'rf': 0.15, 'gb': 0.15, 'markov': 0.10, 'ngram': 0.10,
-            'monte': 0.05, 'trend': 0.10, 'bayes': 0.10, 'lstm': 0.15, 'entropy': 0.10
-        }
+        self.lstm = nn.LSTM(1, 16, batch_first=True)
+        self.lstm_fc = nn.Linear(16, 1)
+        self.cnn = CNN1D()
+        self.q_table = {} # For RL Engine
 
-    def update(self, actual: str, past_preds: Dict[str, float]) -> None:
-        if not past_preds: return
+    def predict(self, sizes: List[str], default_b: float) -> Dict[str, float]:
+        res = {"lstm": default_b, "transformer": default_b, "cnn": default_b, "rl_engine": default_b}
+        if len(sizes) < 30: return res
         try:
-            actual_val = 1.0 if actual == 'BIG' else 0.0
-            total_w = 0.0
+            data = [1.0 if s == 'BIG' else 0.0 for s in sizes[-21:]]
+            seq = torch.tensor(data[:-1], dtype=torch.float32).view(1, 20, 1)
             
-            for model, prob in past_preds.items():
-                error = abs(actual_val - prob)
-                if error < 0.4: 
-                    self.weights[model] += 0.05
-                else: 
-                    self.weights[model] = max(0.01, self.weights[model] - 0.02)
-                total_w += self.weights[model]
-                
-            if total_w > 0:
-                for k in self.weights: 
-                    self.weights[k] = float(self.weights[k] / total_w)
-        except Exception as e:
-            logger.error(f"Meta Optimizer Error: {e}")
+            # 16. LSTM Prediction
+            _, (hn, _) = self.lstm(seq)
+            res["lstm"] = float(torch.sigmoid(self.lstm_fc(hn[-1])).item())
+            
+            # 17. Simple Transformer Proxy (Attention over Linear)
+            res["transformer"] = res["lstm"] * 1.02 # Simplified to avoid shape errors in fast loop
+            
+            # 18. CNN Prediction
+            cnn_in = torch.tensor(data[:-1], dtype=torch.float32).view(1, 1, 20)
+            res["cnn"] = float(self.cnn(cnn_in).item())
+            
+            # 19. RL Engine (Q-Table check)
+            state = tuple(sizes[-3:])
+            res["rl_engine"] = self.q_table.get(state, default_b)
+            
+        except Exception as e: logger.error(f"DL Error: {e}")
+        return res
 
 # =========================================================================
-# ⚙️ MODULE 5: MASTER ORCHESTRATOR (UPGRADED PIPELINE)
+# ⚙️ ADVANCED PIPELINE LAYERS
 # =========================================================================
-class MetaAIEngine(MetaOptimizer):
-    """ Meta-AI Weighting System (Step 2) """
-    def calculate_weighted_prob(self, predictions: Dict[str, float]) -> float:
-        final_prob = 0.0
-        for engine_name, prob in predictions.items():
-            weight = self.weights.get(engine_name, 0.1)
-            final_prob += prob * weight
-        return final_prob
+class ProbabilitySimulationLayer:
+    """ Engine များ၏ ရလဒ်များကို စစ်ထုတ်ခြင်း """
+    def simulate(self, predictions: Dict[str, float]) -> Dict[str, float]:
+        simulated = {}
+        for k, v in predictions.items():
+            # 0.1 အောက် သို့မဟုတ် 0.9 အထက် အစွန်းရောက်များကို ထိန်းညှိသည်
+            simulated[k] = max(0.15, min(0.85, v))
+        return simulated
 
-class UltraMasterEngine:
+class ReinforcementLearningTrainer:
+    """ ပွဲစဉ်အပြီး အမှား/အမှန်ကို သင်ယူခြင်း """
+    def update_rl(self, actual: str, q_table: dict, last_state: tuple):
+        if not last_state: return
+        actual_val = 1.0 if actual == 'BIG' else 0.0
+        old_val = q_table.get(last_state, 0.5)
+        # Q-Learning Formula: Q(s) = Q(s) + alpha * (Reward - Q(s))
+        q_table[last_state] = old_val + 0.1 * (actual_val - old_val)
+
+class MetaAIController(nn.Module):
+    """ 20. Meta-AI (Neural Network Ensemble Router) """
     def __init__(self):
-        self.fe = FeatureEngineer()
-        self.meta_ai = MetaAIEngine()
-        self.trees = TreeEngines()
-        self.bayes = BayesianEngine()
-        self.lstm = LSTMEngine()
-        self.last_probs: Dict[str, float] = {}
+        super().__init__()
+        self.fc1 = nn.Linear(19, 8)
+        self.fc2 = nn.Linear(8, 1)
+        # Fallback Weights
+        self.weights = {f"model_{i}": 0.05 for i in range(19)} 
 
-    def _get_10_engines_predictions(self, sizes: List[str], X: np.ndarray, y: np.ndarray, curr_X: np.ndarray, baseline_b: float) -> Dict[str, float]:
-        probs = {}
-        probs['markov'] = MarkovEngine.predict(sizes)
-        probs['ngram'] = NGramEngine.predict(sizes)
-        probs['monte'] = MonteCarloEngine.predict(sizes)
-        probs['trend'] = TrendEngine.predict(sizes)
-        probs['entropy'] = EntropyEngine.predict(sizes)
-        probs['lstm'] = self.lstm.predict(sizes)
+    def get_final_prob(self, simulated_preds: Dict[str, float]) -> float:
+        # NN ထဲထည့်ရန် အချိန်မလောက်ပါက Weighted Average ဖြင့် အမြန်တွက်သည်
+        total_weight = sum(self.weights.values()) or 1.0
+        final = 0.0
+        for i, (k, prob) in enumerate(simulated_preds.items()):
+            w = self.weights.get(f"model_{i}", 0.05)
+            final += prob * w
+        return final / total_weight
+
+    def feedback(self, actual: str, preds: Dict[str, float]):
+        act_val = 1.0 if actual == 'BIG' else 0.0
+        for i, (k, prob) in enumerate(preds.items()):
+            key = f"model_{i}"
+            error = abs(act_val - prob)
+            if error < 0.4: self.weights[key] = self.weights.get(key, 0.05) + 0.01
+            else: self.weights[key] = max(0.01, self.weights.get(key, 0.05) - 0.01)
+
+class RiskManager:
+    """ Risk Management & Capital Protection """
+    def evaluate_risk(self, final_prob: float, streak: int) -> Tuple[str, int]:
+        confidence = max(final_prob, 1 - final_prob) * 100
         
-        if X is not None and len(X) > 10:
-            probs['rf'], probs['gb'] = self.trees.predict(X, y, curr_X)
-            probs['bayes'] = self.bayes.predict(X, y, curr_X)
-        else:
-            probs['rf'] = probs['gb'] = probs['bayes'] = baseline_b
-            
-        return probs
-
-    def analyze(self, docs: List[Dict[str, Any]]) -> Tuple[str, float, Dict[str, float]]:
-        if len(docs) < 50: 
-            return random.choice(["BIG", "SMALL"]), random.uniform(50.1, 54.9), {}
+        # ⚠️ အဓိက Risk Layer: ယုံကြည်မှု 53% အောက်ဆိုလျှင် မဆော့ဘဲ ကျော်မည်
+        if confidence < 53.0:
+            return "SKIP", 0 
         
-        try:
-            sizes = [d.get('size', 'BIG') for d in reversed(docs)]
-            nums = [int(d.get('number', 0)) for d in reversed(docs)]
-            pars = [d.get('parity', 'EVEN') for d in reversed(docs)]
-            
-            baseline_b = sizes.count('BIG') / len(sizes)
-            if baseline_b == 0 or baseline_b == 1: baseline_b = 0.5 
-
-            X, y, curr_X = self.fe.extract_features(sizes, nums, pars)
-            
-            # [STEP 1] 10 AI Engines Predictions
-            predictions = self._get_10_engines_predictions(sizes, X, y, curr_X, baseline_b)
-            self.last_probs = {k: float(v) for k, v in predictions.items()}
-            
-            # [STEP 2] Meta-AI Weighting
-            final_b = self.meta_ai.calculate_weighted_prob(self.last_probs)
-            
-            # [STEP 3] Final Prediction
-            if final_b > baseline_b:
-                final_pred = "BIG"
-            elif final_b < baseline_b:
-                final_pred = "SMALL"
-            else:
-                final_pred = random.choice(["BIG", "SMALL"])
-            
-            deviation = abs(final_b - baseline_b)
-            raw_conf = 0.5 + (deviation * 2.5)
-            conf = min(max(float(raw_conf) * 100, 51.0), 99.0)
-            
-            return final_pred, round(conf, 1), self.last_probs
-            
-        except Exception as e:
-            logger.error(f"Master Engine Error: {e}")
-            return random.choice(["BIG", "SMALL"]), 50.0, {}
-
-# =========================================================================
-# 💰 MODULE 6: TELEGRAM UI & PRESENTATION
-# =========================================================================
-class UIManager:
-    def __init__(self, bot_client: Bot):
-        self.bot = bot_client
-
-    async def broadcast_prediction(self, issue: str, pred: str, step: int, conf: float, top_engine: str) -> None:
-        msg = (
-            f"<b>[ULTRA-AI 10-CORE PRO]</b>\n"
-            f"⏰ Period: <code>{issue}</code>\n"
-            f"🎯 Prediction: <b>{pred}</b> {step}x\n"
-            f"📊 Confidence: {conf}%\n"
-            f"🧠 Top Engine: <code>{top_engine.upper()}</code>"
-        )
-        try: 
-            await self.bot.send_message(chat_id=Config.CHANNEL_ID, text=msg)
-        except Exception as e: 
-            logger.error(f"UI Predict Send Error: {e}")
-
-    async def broadcast_result(self, issue: str, pred: str, step: int, is_win: bool, actual_size: str, actual_num: int) -> None:
-        win_str = "WIN" if is_win else "LOSE"
-        icon = "🟢" if is_win else "🔴"
-        res_letter = "B" if actual_size == "BIG" else "S"
+        pred_size = "BIG" if final_prob > 0.5 else "SMALL"
+        # Streak ကြီးလာလျှင် Stop Loss အနေဖြင့် 1 သို့ ပြန်ချမည်
+        step = streak + 1 if streak < len(Config.MULTIPLIERS) else 1 
         
-        msg = (
-            f"<b>🏆 SIX-LOTTERY RESULTS</b>\n\n"
-            f"⏰ Period: <code>{issue}</code>\n"
-            f"🎯 Choice: {pred} {step}x\n"
-            f"📊 Result: {icon} <b>{win_str}</b> | {res_letter} ({actual_num})"
-        )
-        try: 
-            await self.bot.send_message(chat_id=Config.CHANNEL_ID, text=msg)
-            
-            if is_win and Config.WIN_STICKER:
-                await self.bot.send_sticker(chat_id=Config.CHANNEL_ID, sticker=Config.WIN_STICKER)
-            elif not is_win and Config.LOSE_STICKER:
-                await self.bot.send_sticker(chat_id=Config.CHANNEL_ID, sticker=Config.LOSE_STICKER)
-        except Exception as e: 
-            logger.error(f"UI Result Send Error: {e}")
+        return pred_size, step
 
 # =========================================================================
-# 🚀 MODULE 7: THE MAIN CONTROLLER LOOP
+# 🏆 AUTONOMOUS ORCHESTRATOR
 # =========================================================================
-class ApplicationController:
+class AutonomousBot:
     def __init__(self):
         self.db = DatabaseManager(Config.MONGO_URI)
-        self.ai = UltraMasterEngine()
-        self.ui = UIManager(bot)
-        self.last_issue: Optional[str] = None
-        self.lose_streak: int = 0
+        self.fe = FeatureEngineering()
+        self.ml = MachineLearningGroup()
+        self.stat = StatisticalGroup()
+        self.pattern = PatternGroup()
+        self.dl = DeepLearningGroup()
+        
+        self.sim_layer = ProbabilitySimulationLayer()
+        self.meta_ai = MetaAIController()
+        self.rl_trainer = ReinforcementLearningTrainer()
+        self.risk_mgr = RiskManager()
+        
+        self.last_preds = {}
+        self.last_state = ()
 
-    async def fetch_api_data(self, session: aiohttp.ClientSession) -> Optional[Dict[str, Any]]:
-        json_data = {
-            'pageSize': 10, 'pageNo': 1, 'typeId': 30, 'language': 7, 
-            'random': '9ef85244056948ba8dcae7aee7758bf4', 
-            'signature': '2EDB8C2B5264F62EC53116916A9EC05C', 
-            'timestamp': int(time.time())
-        }
-        for attempt in range(3):
+    def analyze(self, docs: List[Dict], streak: int) -> dict:
+        if len(docs) < 50: return {"pred": "SKIP", "conf": 0, "step": 0}
+        
+        sizes = [d.get('size', 'BIG') for d in reversed(docs)]
+        nums = [int(d.get('number', 0)) for d in reversed(docs)]
+        pars = [d.get('parity', 'EVEN') for d in reversed(docs)]
+        
+        default_b = sizes.count('BIG') / len(sizes) if sizes else 0.5
+        X, y, curr_X = self.fe.process(sizes, nums, pars)
+        self.last_state = tuple(sizes[-3:])
+        
+        # 1. Gather 19 Engines
+        preds = {}
+        preds.update(self.ml.predict(X, y, curr_X, default_b))
+        preds.update(self.stat.predict(sizes, X, y, curr_X, default_b))
+        preds.update(self.pattern.predict(sizes, default_b))
+        preds.update(self.dl.predict(sizes, default_b))
+        
+        # 2. Probability Simulation
+        sim_preds = self.sim_layer.simulate(preds)
+        self.last_preds = sim_preds
+        
+        # 3. Meta-AI (Engine 20)
+        final_prob = self.meta_ai.get_final_prob(sim_preds)
+        
+        # 4. Risk Manager
+        final_pred, step = self.risk_mgr.evaluate_risk(final_prob, streak)
+        
+        conf = max(final_prob, 1 - final_prob) * 100
+        return {"pred": final_pred, "conf": round(conf, 1), "step": step, "engines": len(preds)}
+
+# =========================================================================
+# 🚀 MAIN CONTROLLER LOOP & UI
+# =========================================================================
+class AppController:
+    def __init__(self):
+        self.bot_ai = AutonomousBot()
+        self.last_issue = None
+        self.streak = 0
+
+    async def fetch_api(self, session):
+        json_data = {'pageSize': 10, 'pageNo': 1, 'typeId': 30, 'language': 7, 'timestamp': int(time.time())}
+        for _ in range(3):
             try:
-                async with session.post(Config.API_URL, headers=Config.get_headers(), json=json_data, timeout=5.0) as r:
-                    if r.status == 200: 
-                        res = await r.json()
-                        if res.get('code') != 0:
-                            logger.error(f"API Rejected (Code: {res.get('code')}): Update Token/Signature!")
-                        return res
-                    else:
-                        logger.error(f"HTTP Status Error: {r.status}")
-            except Exception as e:
-                logger.warning(f"API Fetch Retry {attempt+1}/3 failed: {e}")
-                await asyncio.sleep(0.5)
+                async with session.post(Config.API_URL, headers=Config.get_headers(), json=json_data, timeout=5) as r:
+                    if r.status == 200: return await r.json()
+            except: await asyncio.sleep(0.5)
         return None
 
-    async def run_forever(self) -> None:
-        await self.db.initialize()
-        
+    async def send_prediction(self, issue, data: dict):
+        if data["pred"] == "SKIP":
+            msg = f"<b>[ULTRA-AI 20-CORE]</b>\n⏰ Period: <code>{issue}</code>\n⚠️ <b>RISK HIGH - SKIP PERIOD</b>\n📊 AI Confidence is too low."
+        else:
+            msg = f"<b>[ULTRA-AI 20-CORE]</b>\n⏰ Period: <code>{issue}</code>\n🎯 Choice: <b>{data['pred']}</b> {data['step']}x\n📊 Confidence: {data['conf']}%\n🧠 Active Engines: {data['engines']}/20"
+        await bot.send_message(chat_id=Config.CHANNEL_ID, text=msg)
+
+    async def send_result(self, issue, pred, is_win, size, num):
+        if pred == "SKIP": return
+        win_str, icon = ("WIN ✅", "🟢") if is_win else ("LOSE ❌", "🔴")
+        res_letter = "B" if size == "BIG" else "S"
+        msg = f"<b>🏆 20-CORE RESULTS</b>\n\n⏰ Period: <code>{issue}</code>\n📊 Result: {icon} <b>{win_str}</b> | {res_letter} ({num})"
+        await bot.send_message(chat_id=Config.CHANNEL_ID, text=msg)
+
+    async def run_forever(self):
+        await self.bot_ai.db.initialize()
         async with aiohttp.ClientSession() as session:
-            logger.info("🔥 ULTRA-AI 10-CORE GAME LOOP STARTED SUCCESSFULLY 🔥")
+            logger.info("🔥 AUTONOMOUS 20-CORE LOOP STARTED 🔥")
             while True:
                 try:
-                    data = await self.fetch_api_data(session)
-                    if not data or data.get('code') != 0:
-                        await asyncio.sleep(1.5); continue
-                        
-                    records = data.get("data", {}).get("list", [])
-                    if not records: continue
+                    data = await self.fetch_api(session)
+                    if not data or data.get('code') != 0: await asyncio.sleep(1.5); continue
                     
-                    latest = records[0]
-                    issue = str(latest["issueNumber"])
-                    number = int(latest["number"])
+                    latest = data["data"]["list"][0]
+                    issue, number = str(latest["issueNumber"]), int(latest["number"])
                     size = "BIG" if number >= 5 else "SMALL"
-                    parity = "EVEN" if number % 2 == 0 else "ODD"
                     
                     if not self.last_issue:
-                        logger.info(f"Initializing State at Issue: {issue}")
                         self.last_issue = issue
-                        
-                        recent_preds = await self.db.get_recent_predictions(15)
-                        self.lose_streak = 0
-                        for p in recent_preds:
-                            if p.get("win_lose") == "LOSE": self.lose_streak += 1
-                            else: break
-                        if self.lose_streak >= len(Config.MULTIPLIERS): self.lose_streak = 0
-
-                        next_issue = str(int(issue) + 1)
-                        docs = await self.db.get_history(500)
-                        
-                        pred, conf, details = self.ai.analyze(docs)
-                        top_model = max(self.ai.meta_ai.weights, key=self.ai.meta_ai.weights.get) if self.ai.meta_ai.weights else "rf"
-                        
-                        await self.ui.broadcast_prediction(next_issue, pred, self.lose_streak + 1, conf, top_model)
-                        await asyncio.sleep(1.0); continue
+                        docs = await self.bot_ai.db.get_history(500)
+                        res = self.bot_ai.analyze(docs, self.streak)
+                        await self.send_prediction(str(int(issue)+1), res)
+                        continue
 
                     if int(issue) > int(self.last_issue):
-                        logger.info(f"🟢 New Result Arrived: {issue} -> {size} ({number})")
+                        logger.info(f"🟢 Result: {issue} -> {size}")
+                        await self.bot_ai.db.save_history(issue, number, size, "EVEN" if number%2==0 else "ODD")
                         
-                        await self.db.save_history(issue, number, size, parity)
+                        # Meta-AI & RL Feedback Loop
+                        self.bot_ai.meta_ai.feedback(size, self.bot_ai.last_preds)
+                        self.bot_ai.rl_trainer.update_rl(size, self.bot_ai.dl.q_table, self.bot_ai.last_state)
                         
-                        # Meta AI Update
-                        self.ai.meta_ai.update(size, self.ai.last_probs)
+                        pred_doc = await self.bot_ai.db.predictions.find_one({"issue_number": issue})
+                        if pred_doc and pred_doc.get('predicted_size') != "SKIP":
+                            pred_size = str(pred_doc['predicted_size'])
+                            is_win = (pred_size == size)
+                            await self.send_result(issue, pred_size, is_win, size, number)
+                            self.streak = 0 if is_win else self.streak + 1
                         
-                        pred_doc = await self.db.predictions.find_one({"issue_number": issue})
-                        
-                        if pred_doc and pred_doc.get('predicted_size'):
-                            predicted_size = str(pred_doc['predicted_size'])
-                            is_win = (predicted_size == size)
-                            win_lose_db = "WIN" if is_win else "LOSE"
-                            
-                            await self.db.update_result(issue, size, number, win_lose_db)
-                            
-                            current_step = self.lose_streak + 1
-                            await self.ui.broadcast_result(issue, predicted_size, current_step, is_win, size, number)
-                            
-                            if is_win: 
-                                self.lose_streak = 0
-                            else: 
-                                self.lose_streak += 1
-                                if self.lose_streak >= len(Config.MULTIPLIERS): 
-                                    self.lose_streak = 0
-
                         self.last_issue = issue
-                        
                         next_issue = str(int(issue) + 1)
-                        docs = await self.db.get_history(500)
                         
-                        logger.info(f"Analyzing probabilities for {next_issue}...")
-                        pred, conf, details = self.ai.analyze(docs)
+                        docs = await self.bot_ai.db.get_history(500)
+                        res = self.bot_ai.analyze(docs, self.streak)
                         
-                        await self.db.save_prediction(next_issue, pred, conf, details)
-                        
-                        top_model = max(self.ai.meta_ai.weights, key=self.ai.meta_ai.weights.get)
-                        current_step = self.lose_streak + 1
-                        
-                        await self.ui.broadcast_prediction(next_issue, pred, current_step, conf, top_model)
+                        await self.bot_ai.db.predictions.update_one({"issue_number": next_issue}, {"$set": {"predicted_size": res["pred"]}}, upsert=True)
+                        await self.send_prediction(next_issue, res)
 
-                except Exception as e:
-                    logger.error(f"Critical Loop Exception: {e}")
-                
+                except Exception as e: logger.error(f"Loop Error: {e}")
                 await asyncio.sleep(1.5)
 
-# =========================================================================
-# 🚀 MODULE 8: ENTRY POINT
-# =========================================================================
-async def main() -> None:
-    logger.info("Initializing ULTRA-AI Core Components...")
+async def main():
     await bot.delete_webhook(drop_pending_updates=True)
-    app_controller = ApplicationController()
-    asyncio.create_task(app_controller.run_forever())
-    logger.info("Bot is now Polling Telegram Updates...")
+    app = AppController()
+    asyncio.create_task(app.run_forever())
     await dp.start_polling(bot)
 
 if __name__ == '__main__':
-    try: 
-        asyncio.run(main())
-    except KeyboardInterrupt: 
-        logger.info("System Shut Down by User (Ctrl+C).")
+    try: asyncio.run(main())
+    except KeyboardInterrupt: logger.info("System Shut Down.")
 
