@@ -57,6 +57,9 @@ class Config:
     MONGO_URI = os.getenv("MONGO_URI", "YOUR_MONGO_URI")
     API_URL = 'https://api.bigwinqaz.com/api/webapi/GetNoaverageEmerdList'
     MULTIPLIERS = [1, 2, 3, 5, 8, 15, 30, 50, 100]
+    
+    WIN_STICKER = "CAACAgUAAxkBAAEQxdZpuiIuH6HJua90Ph_0VYjHNHUK2wAC-h8AAkmh0VWE9KS7wldHfToE"  
+    LOSE_STICKER = "YOUR_LOSE_STICKER_ID"
 
     @staticmethod
     def get_headers():
@@ -393,7 +396,16 @@ class AppController:
         win_str, icon = ("WIN ✅", "🟢") if is_win else ("LOSE ❌", "🔴")
         res_letter = "B" if size == "BIG" else "S"
         msg = f"<b>🏆 20-CORE RESULTS</b>\n\n⏰ Period: <code>{issue}</code>\n📊 Result: {icon} <b>{win_str}</b> | {res_letter} ({num})"
+        
         await bot.send_message(chat_id=Config.CHANNEL_ID, text=msg)
+        
+        try:
+            if is_win and Config.WIN_STICKER:
+                await bot.send_sticker(chat_id=Config.CHANNEL_ID, sticker=Config.WIN_STICKER)
+            elif not is_win and Config.LOSE_STICKER:
+                await bot.send_sticker(chat_id=Config.CHANNEL_ID, sticker=Config.LOSE_STICKER)
+        except Exception as e:
+            logger.error(f"Sticker Send Error: {e}")
 
     async def run_forever(self):
         await self.bot_ai.db.initialize()
@@ -451,4 +463,3 @@ async def main():
 if __name__ == '__main__':
     try: asyncio.run(main())
     except KeyboardInterrupt: logger.info("System Shut Down.")
-
