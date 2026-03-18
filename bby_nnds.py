@@ -368,7 +368,12 @@ class AppController:
         self.streak = 0
 
     async def fetch_api(self, session):
-        json_data = {'pageSize': 10, 'pageNo': 1, 'typeId': 30, 'language': 7, 'timestamp': int(time.time())}
+        json_data = {
+            'pageSize': 10, 'pageNo': 1, 'typeId': 30, 'language': 7, 
+            'random': '9ef85244056948ba8dcae7aee7758bf4', 
+            'signature': '2EDB8C2B5264F62EC53116916A9EC05C', 
+            'timestamp': int(time.time())
+        }
         for _ in range(3):
             try:
                 async with session.post(Config.API_URL, headers=Config.get_headers(), json=json_data, timeout=5) as r:
