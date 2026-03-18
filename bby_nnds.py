@@ -58,7 +58,7 @@ class Config:
     API_URL = 'https://api.bigwinqaz.com/api/webapi/GetNoaverageEmerdList'
     MULTIPLIERS = [1, 2, 3, 5, 8, 15, 30, 50, 100]
     
-    WIN_STICKER = "CAACAgUAAxkBAAEQxdZpuiIuH6HJua90Ph_0VYjHNHUK2wAC-h8AAkmh0VWE9KS7wldHfToE"  
+    WIN_STICKER = "CAACAgUAAxkBAAEQxfZpuje21ZYXoT68JntN9OemzVGbVgACQyAAAuoB0VWFUzQPpDkEyDoE"  
     LOSE_STICKER = "YOUR_LOSE_STICKER_ID"
 
     @staticmethod
@@ -386,14 +386,14 @@ class AppController:
 
     async def send_prediction(self, issue, data: dict):
         if data["pred"] == "SKIP":
-            msg = f"<b>[ULTRA-AI 20-CORE]</b>\n⏰ Period: <code>{issue}</code>\n⚠️ <b>RISK HIGH - SKIP PERIOD</b>\n📊 AI Confidence is too low."
+            msg = f"<b>☘️ 𝐔𝐋𝐓𝐑𝐀-𝐀𝐈 𝟐𝟎-𝐂𝐎𝐑𝐄 ☘️</b>\n⏰ Pᴇʀɪᴏᴅ: <code>{issue}</code>\n⚠️ <b>Rɪsᴋ Hɪɢʜ - Sᴋɪᴘ Pᴇʀɪᴏᴅ</b>\n📊 AI Cᴏɴғɪᴅᴇɴᴄᴇ ɪs ᴛᴏᴏ ʟᴏᴡ."
         else:
-            msg = f"<b>[ULTRA-AI 20-CORE]</b>\n⏰ Period: <code>{issue}</code>\n🎯 Choice: <b>{data['pred']}</b> {data['step']}x\n📊 Confidence: {data['conf']}%\n🧠 Active Engines: {data['engines']}/20"
+            msg = f"<b>☘️ 𝐔𝐋𝐓𝐑𝐀-𝐀𝐈 𝟐𝟎-𝐂𝐎𝐑𝐄 ☘️</b>\n⏰ Pᴇʀɪᴏᴅ: <code>{issue}</code>\n🎯 Cʜᴏɪᴄᴇ: <b>{data['pred']}</b> {data['step']}x\n📊 Cᴏɴғɪᴅᴇɴᴄᴇ: {data['conf']}%\n🧠 Aᴄᴛɪᴠᴇ Eɴɢɪɴᴇs: {data['engines']}/20"
         await bot.send_message(chat_id=Config.CHANNEL_ID, text=msg)
 
     async def send_result(self, issue, pred, is_win, size, num):
         if pred == "SKIP": return
-        win_str, icon = ("WIN ✅", "🟢") if is_win else ("LOSE ❌", "🔴")
+        win_str, icon = ("WIN", "🟢") if is_win else ("LOSE", "🔴")
         res_letter = "B" if size == "BIG" else "S"
         msg = f"<b>🏆 20-CORE RESULTS</b>\n\n⏰ Period: <code>{issue}</code>\n📊 Result: {icon} <b>{win_str}</b> | {res_letter} ({num})"
         
