@@ -48,7 +48,7 @@ dp = Dispatcher()
 db_client = motor.motor_asyncio.AsyncIOMotorClient(MONGO_URI)
 db = db_client['bigwin_database'] 
 history_collection = db['game_history'] 
-predictions_collection = db['predictions'] 
+predictions_collection = db['psp_predictions'] 
 
 # ==========================================
 # 🔧 2. SYSTEM VARIABLES 
