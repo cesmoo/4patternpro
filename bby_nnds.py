@@ -381,7 +381,7 @@ async def check_game_and_predict(session: aiohttp.ClientSession):
                     else: break
 
                 # Alert System (7 Losses)
-                if current_lose_streak >= 7 and LAST_NOTIFIED_ISSUE != latest_issue:
+                if current_lose_streak >= 5 and LAST_NOTIFIED_ISSUE != latest_issue:
                     try:
                         alert_text = (
                             f"🚨 <b>[SYSTEM ALERT] ကြီးမားသော ရှုံးပွဲဆက်မှု!</b>\n\n"
