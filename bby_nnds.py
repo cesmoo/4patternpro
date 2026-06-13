@@ -48,7 +48,7 @@ dp = Dispatcher()
 db_client = motor.motor_asyncio.AsyncIOMotorClient(MONGO_URI)
 db = db_client['bigwin_database'] 
 history_collection = db['game_history'] 
-predictions_collection = db['predictions'] 
+predictions_collection = db['nnds_predictions'] 
 
 # ==========================================
 # 🔧 2. SYSTEM VARIABLES 
@@ -72,7 +72,7 @@ async def init_db():
     try:
         await history_collection.create_index("issue_number", unique=True)
         await predictions_collection.create_index("issue_number", unique=True)
-        print("🗄 MongoDB ချိတ်ဆက်မှု အောင်မြင်ပါသည်။ (🚀 25s Fixed Trigger + Feature Engineering AI V2)")
+        print("🗄 MongoDB ချိတ်ဆက်မှု အောင်မြင်ပါသည်။ (🚀 25s Fixed Trigger + 99% Strict AI)")
     except Exception as e:
         pass
 
@@ -112,16 +112,14 @@ async def login_and_get_token(session: aiohttp.ClientSession):
     return False
 
 # ==========================================
-# 🧠 4. DYNAMIC HISTORY AI LOGIC (Feature Engineering V2)
+# 🧠 4. DYNAMIC HISTORY AI LOGIC (Strict 99% Rule)
 # ==========================================
 def dynamic_history_predict(history_docs):
     if len(history_docs) < 20:
         return "BIG (အကြီး) 🔴", 55.0, "⏳ Data စုဆောင်းဆဲ (Feature တွက်ချက်ရန် Data လိုအပ်သည်)..."
         
-    # Database မှ Data များသည် အသစ်မှ အဟောင်းသို့ဖြစ်သဖြင့် အဟောင်းမှ အသစ်သို့ ပြန်လှည့်မည်
     docs = list(reversed(history_docs))
     
-    # --- Feature Extraction (အချက်အလက်များ ခွဲထုတ်ခြင်း) ---
     sizes = [d.get('size', 'BIG') for d in docs]
     numbers = [d.get('number', 0) for d in docs]
     parities = [d.get('parity', 'EVEN') for d in docs]
@@ -134,7 +132,7 @@ def dynamic_history_predict(history_docs):
     small_score = 0.0
     reasons = []
 
-    # --- Feature 1: Number Transition (နောက်ဆုံးဂဏန်းမှ ပြောင်းလဲမှု) [Weight: 40%] ---
+    # --- Feature 1: Number Transition (နောက်ဆုံးဂဏန်းမှ ပြောင်းလဲမှု) [Weight: 60%] ---
     num_big_count = 0
     num_small_count = 0
     for i in range(len(numbers) - 1):
@@ -147,48 +145,15 @@ def dynamic_history_predict(history_docs):
         num_big_prob = (num_big_count / num_total) * 100
         num_small_prob = (num_small_count / num_total) * 100
         
-        big_score += num_big_prob * 0.4
-        small_score += num_small_prob * 0.4
+        big_score += num_big_prob * 0.60
+        small_score += num_small_prob * 0.60
         
         if num_big_prob > num_small_prob + 5:
             reasons.append(f"ဂဏန်း [{last_num}] နောက် အကြီးပိုထွက်လေ့ရှိ၍")
         elif num_small_prob > num_big_prob + 5:
             reasons.append(f"ဂဏန်း [{last_num}] နောက် အသေးပိုထွက်လေ့ရှိ၍")
 
-    # --- Feature 2: Size Pattern (အကြီး/အသေး ဆက်တိုက်ထွက်မှု) [Weight: 40%] ---
-    MAX_PATTERN_LENGTH = 5
-    MIN_PATTERN_LENGTH = 4 
-    pattern_found = True
-    
-    for current_len in range(MAX_PATTERN_LENGTH, MIN_PATTERN_LENGTH - 1, -1):
-        if len(sizes) > current_len:
-            recent_pattern = sizes[-current_len:] 
-            pat_big_count = 0
-            pat_small_count = 0
-            
-            for i in range(len(sizes) - current_len):
-                if sizes[i:i+current_len] == recent_pattern:
-                    next_result = sizes[i+current_len] 
-                    if next_result == 'BIG': pat_big_count += 1
-                    elif next_result == 'SMALL': pat_small_count += 1
-                        
-            pat_total = pat_big_count + pat_small_count
-            if pat_total > 0:
-                pat_big_prob = (pat_big_count / pat_total) * 100
-                pat_small_prob = (pat_small_count / pat_total) * 100
-                
-                big_score += pat_big_prob * 0.4
-                small_score += pat_small_prob * 0.4
-                pattern_found = True
-                
-                pattern_str = "-".join(recent_pattern).replace('BIG', 'B').replace('SMALL', 'S')
-                if pat_big_prob > pat_small_prob:
-                    reasons.append(f"Pattern [{pattern_str}] အရ အကြီးဆက်လာနိုင်၍")
-                elif pat_small_prob > pat_big_prob:
-                    reasons.append(f"Pattern [{pattern_str}] အရ အသေးဆက်လာနိုင်၍")
-                break 
-
-    # --- Feature 3: Parity Transition (စုံ/မ အပေါ်မူတည်မှု) [Weight: 20%] ---
+    # --- Feature 2: Parity Transition (စုံ/မ အပေါ်မူတည်မှု) [Weight: 40%] ---
     parity_big_count = 0
     parity_small_count = 0
     for i in range(len(parities) - 1):
@@ -201,24 +166,21 @@ def dynamic_history_predict(history_docs):
         parity_big_prob = (parity_big_count / parity_total) * 100
         parity_small_prob = (parity_small_count / parity_total) * 100
         
-        big_score += parity_big_prob * 0.2
-        small_score += parity_small_prob * 0.2
+        big_score += parity_big_prob * 0.40
+        small_score += parity_small_prob * 0.40
         
-        # Parity effect က သိသာတဲ့ အခါမှသာ အကြောင်းပြချက်ထဲထည့်မည်
         if parity_big_prob > 60.0: 
             reasons.append(f"[{last_parity}] ဂဏန်းများနောက် အကြီးလာလေ့ရှိ၍")
         elif parity_small_prob > 60.0:
             reasons.append(f"[{last_parity}] ဂဏန်းများနောက် အသေးလာလေ့ရှိ၍")
 
-    # --- Final Decision Logic (ဆုံးဖြတ်ချက်ချခြင်း) ---
+    # --- Final Decision Logic ---
     if big_score == 0 and small_score == 0:
-        # Data လုံလောက်စွာ မရှိသေးပါက
         b_count = sizes.count("BIG")
         s_count = sizes.count("SMALL")
         predicted = "BIG (အကြီး) 🔴" if s_count > b_count else "SMALL (အသေး) 🟢"
         return predicted, 55.0, "Pattern အသစ်ဖြစ်နေသဖြင့် အများစုထွက်မည့်ဘက်ကို ရွေးထားသည်"
 
-    # Score များကို 100% အတွင်း ဝင်အောင် ပြန်ချိန်ညှိခြင်း (Normalization)
     total_score = big_score + small_score
     final_big_prob = (big_score / total_score) * 100
     final_small_prob = (small_score / total_score) * 100
@@ -230,10 +192,9 @@ def dynamic_history_predict(history_docs):
         predicted = "SMALL (အသေး) 🟢"
         final_prob = final_small_prob
 
-    # Probabilty ကို 50% အောက် မကျစေရန်နှင့် 98% ထက် မကျော်စေရန် ထိန်းချုပ်ခြင်း
-    final_prob = max(51.0, min(round(final_prob, 1), 98.0))
+    # ၉၉% အထိ မြင့်တက်ခွင့်ပြုထားသည်
+    final_prob = max(51.0, min(round(final_prob, 1), 99.0))
     
-    # အကြောင်းပြချက်များ စုစည်းခြင်း (အများဆုံး ၂ ခုသာ ယူမည်)
     final_reason = " ➕ ".join(reasons[:2]) if reasons else "သမိုင်းကြောင်း Data မျိုးစုံကို ပေါင်းစပ်တွက်ချက်ထားသည်"
 
     return predicted, final_prob, final_reason
@@ -488,12 +449,11 @@ async def check_game_and_predict(session: aiohttp.ClientSession):
                     upsert=True
                 )
 
-                bet_advice = ""
-                if current_lose_streak == 0: bet_advice = "💰 <b>လောင်းကြေး:</b> အခြေခံကြေး (1x)"
-                elif current_lose_streak == 1: bet_advice = "💰 <b>လောင်းကြေး:</b> 2x (Martingale)"
-                elif current_lose_streak == 2: bet_advice = "💰 <b>လောင်းကြေး:</b> 4x (Martingale)"
-                elif current_lose_streak == 3: bet_advice = "💰 <b>လောင်းကြေး:</b> 8x (Martingale)"
-                else: bet_advice = "⚠️ <b>[DANGER] ၄ ပွဲဆက်ရှုံးထားပါသည်!</b>\nခဏနားပါ (သို့) <b>1x မှ ပြန်စပါ။</b>"
+                # 💡 ၉၉% စည်းမျဉ်းအရ အကြံပြုချက်ပေးခြင်း
+                if final_prob >= 99.0:
+                    bet_advice = "✅ <b>အကြံပြုချက်:</b> 99% နိုင်ရန်သေချာသောပွဲဖြစ်၍ ထိုးသင့်ပါသည်။"
+                else:
+                    bet_advice = "⚠️ <b>အကြံပြုချက်:</b> နိုင်ရန်မသေချာသောပွဲဖြစ်၍ မထိုးသင့်ပါ။ (ပွဲကျော်ပါ)"
 
                 pred_cursor = predictions_collection.find({
                     "issue_number": {"$gte": SESSION_START_ISSUE},
@@ -563,12 +523,10 @@ async def auto_broadcaster():
             current_time = time.time()
             sec_passed = int(current_time) % 30
             
-            # ၂၅ စက္ကန့် အလို (ဂိမ်းစပြီး ၅ စက္ကန့်အကြာ) သို့ရောက်မှသာ API ကို ခေါ်ယူစစ်ဆေးမည်
             if 5 <= sec_passed <= 28:
                 try:
                     is_processed = await check_game_and_predict(session)
                     if is_processed:
-                        # အသစ်တင်ပေးပြီးပါက၊ နောက်တစ်ကြိမ် Cycle မစခင်အထိ Sleep ဖြင့် နားထားမည် (Server Resource သက်သာစေရန်)
                         sleep_time = 30 - (int(time.time()) % 30)
                         await asyncio.sleep(sleep_time)
                         continue 
@@ -579,10 +537,10 @@ async def auto_broadcaster():
 
 @dp.message(Command("start"))
 async def send_welcome(message: types.Message):
-    await message.reply("👋 မင်္ဂလာပါ။ စနစ်က 25s Fixed Trigger + Feature Engineering AI V2 ပုံစံဖြင့် အလုပ်လုပ်နေပါပြီ။")
+    await message.reply("👋 မင်္ဂလာပါ။ စနစ်က 25s Fixed Trigger + 99% Strict AI ပုံစံဖြင့် အလုပ်လုပ်နေပါပြီ။")
 
 async def main():
-    print("🚀 Aiogram Bigwin Bot (25s Trigger AI V2) စတင်နေပါပြီ...\n")
+    print("🚀 Aiogram Bigwin Bot (25s Trigger + 99% Filter) စတင်နေပါပြီ...\n")
     await bot.delete_webhook(drop_pending_updates=True)
     asyncio.create_task(auto_broadcaster())
     await dp.start_polling(bot)
