@@ -157,8 +157,8 @@ def dynamic_history_predict(history_docs):
 
     # --- Feature 2: Size Pattern (အကြီး/အသေး ဆက်တိုက်ထွက်မှု) [Weight: 40%] ---
     MAX_PATTERN_LENGTH = 5
-    MIN_PATTERN_LENGTH = 3  
-    pattern_found = False
+    MIN_PATTERN_LENGTH = 4 
+    pattern_found = True
     
     for current_len in range(MAX_PATTERN_LENGTH, MIN_PATTERN_LENGTH - 1, -1):
         if len(sizes) > current_len:
